@@ -37,7 +37,29 @@ race , niveau :
 {
 }
 
-GraveSong Lore
+GraveSong Lore :
+
+
+Lorsque le ciel s’éteignit, le monde ne comprit pas immédiatement qu’il était déjà condamné. Le soleil disparut sans explosion ni présage, 
+avalé par une obscurité dense et immobile. Les étoiles cessèrent de briller, comme si le firmament lui-même avait été recouvert d’un voile 
+funéraire. Puis la terre trembla. Partout, des donjons oubliés surgirent des profondeurs, brisant plaines et cités, et de leurs entrailles 
+jaillirent des monstres que les légendes n’osaient plus nommer. Royaumes effondrés, armées massacrées, villages réduits 
+au silence : l’humanité fut décimée en quelques lunes. Et au cœur de ce chaos, une tour gigantesque apparut, noire et infinie, 
+dressée là où il n’y avait auparavant que des terres stériles. Devant son immense porte, un panneau gravé d’une écriture inconnue 
+proclamait qu’une seule personne à la fois pouvait entrer, choisir sa classe, et gravir les étages ; chaque étage conquis effacerait 
+du monde entier la race de monstres qui y résidait, mais si le conquérant mourait, tout serait annulé, les créatures reviendraient, 
+et un nouveau champion devrait reprendre l’ascension. Les survivants, comprenant que cette tour représentait leur unique espoir, se 
+regroupèrent autour d’elle et bâtirent une immense cité fortifiée, assez vaste pour abriter des milliers d’âmes, protégée par d’épaisses 
+murailles et alimentée par la peur autant que par l’espérance. On appela ceux qui osaient entrer dans la tour les Chantelames, car chaque 
+victoire résonnait dans le monde comme une note arrachée à la mort elle-même, une strophe ajoutée à une mélodie funèbre que l’on nomma bientôt 
+la Gravesong. Les Chantelames pouvaient quitter la tour entre deux ascensions pour se préparer, commercer, renforcer leur équipement ou panser 
+leurs plaies, mais ils portaient tous le poids d’un serment terrible : s’ils tombaient, le monde paierait leur échec. Le plus grand d’entre eux 
+avait gravi plus d’étages que quiconque auparavant, faisant disparaître des hordes entières, redonnant souffle à la cité et espoir aux survivants, 
+avant de périr dans les hauteurs obscures ; sa mort rendit au monde les horreurs qu’il avait effacées, et depuis ce jour la peur ne quitta plus 
+jamais les remparts. Aujourd’hui, un nouveau Chantelame se tient devant la porte. Jeune, façonné depuis l’enfance pour cette tâche, entraîné dans 
+l’ombre et nourri d’attentes écrasantes, il porte sur ses épaules le rêve fragile d’une humanité accrochée à la moindre lueur. Car si la tour n’est 
+pas vaincue, si son sommet demeure hors d’atteinte, alors la chanson des tombes ne cessera jamais de résonner, et le monde tout entier deviendra un 
+simple couplet dans l’éternelle et lugubre Gravesong.
 
 
 
