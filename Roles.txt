@@ -44,4 +44,12 @@ GraveSong Lore
 fonctionalité : 
 
 combat TpT , style pokemon 
-systeme de talent inhé random selon la classse 
+
+Création de perso :
+    nom ,prenom , lore , objectifs (aléatoire)
+    systeme de talent inhé random selon la classse 
+    stats par classe (definies au prealable, stats augmentable avec l'exp)
+
+Shop + gold
+Checkpoint (totem cacher)
+
