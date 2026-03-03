@@ -24,7 +24,7 @@ stats a la elden ring
 
 
 
-type de persso:
+type de perso:
 
 race(optionnel) , classe , niveau  : 
 {
@@ -36,6 +36,8 @@ type d'ennemie :
 race , niveau :
 {
 }
+
+GraveSong Lore
 
 
 
