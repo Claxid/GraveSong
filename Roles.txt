@@ -36,3 +36,10 @@ type d'ennemie :
 race , niveau :
 {
 }
+
+
+
+fonctionalité : 
+
+combat TpT , style pokemon 
+systeme de talent inhé random selon la classse 
