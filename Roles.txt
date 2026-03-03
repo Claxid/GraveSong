@@ -1,0 +1,38 @@
+Roles : 
+Elsa (Backend)
+Antoine(Fullstack)
+Thomas(Fullstack)
+Clément(Fullstack)
+
+
+idées projets :
+
+interface genre pokémon 
+
+Dark fantasy (genre the witcher pas le ore)
+
+
+
+
+idée bonus : 
+
+achievment 
+
+stats a la elden ring 
+
+
+
+
+
+type de persso:
+
+race(optionnel) , classe , niveau  : 
+{
+}
+
+
+type d'ennemie :
+
+race , niveau :
+{
+}
