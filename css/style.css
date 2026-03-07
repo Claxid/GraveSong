@@ -28,6 +28,7 @@ img {
 }
 
 #alerteF11 h2 {
+    font-size: 18px;
     margin: 0;
     color: rgb(139, 135, 135 , 0.5);
  animation:
@@ -49,7 +50,7 @@ img {
 #AppuyerPartout h3 {
     font-size: 28px;
     margin: 0;
-    color: rgb(139, 135, 135 , 0.5);
+    color: rgb(139, 135, 135 , 0.7);
     
     animation:
         shimmer 2.8s ease-in-out 1s infinite alternate;
