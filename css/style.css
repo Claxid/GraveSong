@@ -25,6 +25,7 @@ img {
     right: 20px;
     z-index: 9999;
     text-align: right;
+    font-family : 'Cinzel Decorative', serif;
 }
 
 #alerteF11 h2 {
@@ -45,6 +46,7 @@ img {
     transform: translateX(-50%);
     z-index: 9999;
     text-align: center;
+    font-family: 'Cinzel Decorative', serif;
 }
 
 #AppuyerPartout h3 {
