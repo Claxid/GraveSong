@@ -12,6 +12,7 @@ resizeCanvas();
 const mapRenderer = createMapRenderer(canvas, ctx);
 const cameraController = createCameraController(canvas, mapRenderer.MAP_WIDTH, mapRenderer.MAP_HEIGHT);
 const playerController = createPlayerController(canvas, ctx, cameraController.camera);
+const enemyController = createEnemyController(canvas, ctx, cameraController.camera);
 
 window.addEventListener("resize", () => {
     resizeCanvas();
@@ -21,6 +22,7 @@ window.addEventListener("resize", () => {
 
 function loop() {
     playerController.update();
+    enemyController.update(playerController.player);
 
     // Mettre à jour la caméra (centrer sur le joueur)
     cameraController.centerOn(playerController.player.x, playerController.player.y);
@@ -30,6 +32,9 @@ function loop() {
 
     // JOUEUR
     playerController.draw();
+
+    // ENNEMI
+    enemyController.draw();
 
     requestAnimationFrame(loop);
 }
