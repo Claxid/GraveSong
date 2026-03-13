@@ -4,9 +4,6 @@ const ctx = canvas.getContext("2d");
 
 
 
-
-
-
 // Ajuste la taille du canvas à la taille de l'écran
 function resizeCanvas() {
     canvas.width = window.innerWidth;
@@ -18,7 +15,7 @@ window.addEventListener("resize", resizeCanvas);
 
 // CHARGEMENT DU SPRITE JOUEUR 
 const sprite = new Image();
-sprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier/Soldier.png"; // ton sprite 100x100 px
+sprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier/Soldier.png"; //  sprite 100x100 px
 
 
 //  CONTROLES CLAVIER 
@@ -37,7 +34,7 @@ canvas.addEventListener("click", (e) => {
 
 //  JOUEUR 
 let player = {
-    x: 500,            // position du joueur dans le "monde"
+    x: 500,            // position du joueur dans la map
     y: 500,
     speed: 1.5,
 
