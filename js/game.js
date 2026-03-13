@@ -34,7 +34,8 @@ canvas.addEventListener("click", (e) => {
 
 //  JOUEUR 
 let player = {
-    x: 500,            // position du joueur dans la map
+    x: 500,            // position du joueur dans la map actuelle
+
     y: 500,
     speed: 1.5,
 
