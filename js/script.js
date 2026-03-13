@@ -47,13 +47,6 @@ if (!isLoadingPage) {
   // Sur index: clic = page loading.
   document.addEventListener('click', pageSuivante);
 
-  // Sur index: touche = page loading.
-  // F11: petit delai pour le plein ecran.
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'F11') {
-      setTimeout(pageSuivante, 150);
-      return;
-    }
 
     pageSuivante();
   });
