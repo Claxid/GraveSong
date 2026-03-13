@@ -47,6 +47,12 @@ if (!isLoadingPage) {
   // Sur index: clic = page loading.
   document.addEventListener('click', pageSuivante);
 
+  // Sur index: touche = page loading.
+  // F11 est ignore ici pour laisser le plein ecran.
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'F11') {
+      return;
+    }
 
     pageSuivante();
   });
