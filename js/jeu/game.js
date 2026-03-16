@@ -46,7 +46,7 @@ window.addEventListener("resize", () => {
 
 // La boucle principale du jeu : update et draw à chaque frame.
 function loop() {
-    playerController.update();
+    playerController.update([enemyController.enemy]);
     enemyController.update(playerController.player);
 
     const playerHitbox = getEntityHitbox(playerController.player);
@@ -75,6 +75,9 @@ function loop() {
 
     // JOUEUR
     playerController.draw();
+
+    // EFFETS D'ATTAQUE (dessinés après le joueur, avant les ennemis)
+    playerController.drawAttacks();
 
     // ENNEMI
     enemyController.draw();
