@@ -17,7 +17,11 @@ function createEnemyController(canvas, ctx, camera, startX = 800, startY = 800) 
         maxFrames: 6,
         animCounter: 0,
         animSpeed: 12,
-        scale: 2
+        scale: 2,
+        hp : 20,
+        maxhp : 20,
+        hitW: 40,
+        hitH: 60
     };
 
     // Update : fait bouger l'ennemi vers le joueur.

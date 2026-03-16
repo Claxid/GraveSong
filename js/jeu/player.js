@@ -25,8 +25,10 @@ function createPlayerController(canvas, ctx, camera) {
 
     // Propriétés du joueur : position, vitesse, animation.
     const player = {
-        x: 500,
-        y: 500,
+        spawnX: 1774,
+        spawnY: 2200,
+        x: 1774,
+        y: 2200,
         speed: 1.5,
         frameX: 0,
         frameY: 0,
@@ -34,7 +36,14 @@ function createPlayerController(canvas, ctx, camera) {
         maxFrames: 8,
         animCounter: 0,
         animSpeed: 10,
-        scale: 2
+        scale: 2,
+        hp : 100,
+        maxHp : 100,
+        exp : 0,
+        maxExp : 100,
+        level : 1,
+        hitW: 40,
+        hitH: 60
     };
 
     let facingLeft = false;
