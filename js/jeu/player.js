@@ -14,6 +14,15 @@ function createPlayerController(canvas, ctx, camera) {
     const ATTACK_COOLDOWN = 2000;
     const ATTACK_DAMAGE = 10;
     const ATTACK_ANIM_SPEED = 4;
+    const ATTACK_SIZE_MULTIPLIER = 3;
+    const ATTACK_RANGE = 220;
+    const ATTACK_HALF_ANGLE = Math.PI / 3;
+
+    function normalizeAngle(angle) {
+        while (angle > Math.PI) angle -= Math.PI * 2;
+        while (angle < -Math.PI) angle += Math.PI * 2;
+        return angle;
+    }
 
     const keys = {};
     document.addEventListener("keydown", (e) => {
@@ -110,14 +119,14 @@ function createPlayerController(canvas, ctx, camera) {
                 }
             }
             if (nearest) {
-                nearest.hp = Math.max(0, nearest.hp - ATTACK_DAMAGE);
                 const angle = Math.atan2(nearest.y - player.y, nearest.x - player.x);
                 attacks.push({
                     x: player.x,
                     y: player.y,
                     angle,
                     frameX: 0,
-                    animCounter: 0
+                    animCounter: 0,
+                    hitApplied: false
                 });
                 lastAttackTime = now;
             }
@@ -131,6 +140,25 @@ function createPlayerController(canvas, ctx, camera) {
                 atk.animCounter = 0;
                 atk.frameX++;
             }
+
+            if (!atk.hitApplied) {
+                for (const enemy of enemies) {
+                    if (enemy.hp <= 0) continue;
+
+                    const dx = enemy.x - atk.x;
+                    const dy = enemy.y - atk.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance > ATTACK_RANGE) continue;
+
+                    const enemyAngle = Math.atan2(dy, dx);
+                    const delta = Math.abs(normalizeAngle(enemyAngle - atk.angle));
+                    if (delta > ATTACK_HALF_ANGLE) continue;
+
+                    enemy.hp = Math.max(0, enemy.hp - ATTACK_DAMAGE);
+                }
+                atk.hitApplied = true;
+            }
+
             if (atk.frameX >= attackEffectFrames) {
                 attacks.splice(i, 1);
             }
@@ -178,7 +206,7 @@ function createPlayerController(canvas, ctx, camera) {
 
     function drawAttacks() {
         const frameSize = 100;
-        const size = frameSize * player.scale * camera.zoom;
+        const size = frameSize * player.scale * ATTACK_SIZE_MULTIPLIER * camera.zoom;
         for (const atk of attacks) {
             const screenX = (atk.x - camera.x) * camera.zoom;
             const screenY = (atk.y - camera.y) * camera.zoom;

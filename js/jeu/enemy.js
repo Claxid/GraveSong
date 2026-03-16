@@ -7,7 +7,7 @@ function createEnemyController(canvas, ctx, camera, startX = 800, startY = 800) 
         spawnY: startY,
         x: startX,
         y: startY,
-        speed: 1.55,
+        speed: 1.52,
         frameX: 0,
         frameY: 0,
         frameSize: 100,
