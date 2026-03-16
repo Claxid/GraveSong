@@ -2,6 +2,19 @@ function createPlayerController(canvas, ctx, camera) {
     const sprite = new Image();
     sprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier/Soldier-Walk.png";
 
+    const attackSprite = new Image();
+    attackSprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier(Split Effects)/Soldier-Attack01_Effect.png";
+    let attackEffectFrames = 6;
+    attackSprite.addEventListener("load", () => {
+        attackEffectFrames = Math.max(1, Math.floor(attackSprite.width / 100));
+    });
+
+    const attacks = [];
+    let lastAttackTime = 0;
+    const ATTACK_COOLDOWN = 2000;
+    const ATTACK_DAMAGE = 10;
+    const ATTACK_ANIM_SPEED = 4;
+
     const keys = {};
     document.addEventListener("keydown", (e) => {
         keys[e.key] = true;
@@ -46,7 +59,7 @@ function createPlayerController(canvas, ctx, camera) {
         player.maxFrames = Math.max(1, Math.floor(sprite.width / player.frameSize));
     });
 
-    function update() {
+    function update(enemies = []) {
         let moving = false;
 
         if (keys["z"]) {
@@ -80,6 +93,47 @@ function createPlayerController(canvas, ctx, camera) {
             }
         } else {
             player.frameX = 0;
+        }
+
+        // Auto-attack : toutes les 2s vers l'ennemi le plus proche
+        const now = performance.now();
+        if (now - lastAttackTime >= ATTACK_COOLDOWN && enemies.length > 0) {
+            let nearest = null;
+            let nearestDist = Infinity;
+            for (const e of enemies) {
+                const dx = e.x - player.x;
+                const dy = e.y - player.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < nearestDist) {
+                    nearestDist = dist;
+                    nearest = e;
+                }
+            }
+            if (nearest) {
+                nearest.hp = Math.max(0, nearest.hp - ATTACK_DAMAGE);
+                const angle = Math.atan2(nearest.y - player.y, nearest.x - player.x);
+                attacks.push({
+                    x: player.x,
+                    y: player.y,
+                    angle,
+                    frameX: 0,
+                    animCounter: 0
+                });
+                lastAttackTime = now;
+            }
+        }
+
+        // Avancer l'animation des effets d'attaque
+        for (let i = attacks.length - 1; i >= 0; i--) {
+            const atk = attacks[i];
+            atk.animCounter++;
+            if (atk.animCounter >= ATTACK_ANIM_SPEED) {
+                atk.animCounter = 0;
+                atk.frameX++;
+            }
+            if (atk.frameX >= attackEffectFrames) {
+                attacks.splice(i, 1);
+            }
         }
     }
 
@@ -122,9 +176,28 @@ function createPlayerController(canvas, ctx, camera) {
         );
     }
 
+    function drawAttacks() {
+        const frameSize = 100;
+        const size = frameSize * player.scale * camera.zoom;
+        for (const atk of attacks) {
+            const screenX = (atk.x - camera.x) * camera.zoom;
+            const screenY = (atk.y - camera.y) * camera.zoom;
+            ctx.save();
+            ctx.translate(screenX, screenY);
+            ctx.rotate(atk.angle);
+            ctx.drawImage(
+                attackSprite,
+                atk.frameX * frameSize, 0, frameSize, frameSize,
+                -size / 2, -size / 2, size, size
+            );
+            ctx.restore();
+        }
+    }
+
     return {
         player,
         update,
-        draw
+        draw,
+        drawAttacks
     };
 }
