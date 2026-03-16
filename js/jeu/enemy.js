@@ -1,0 +1,54 @@
+function createEnemyController(canvas, ctx, camera, startX = 800, startY = 800) {
+    const sprite = new Image();
+    sprite.src = "../assets/sprites/Characters(100x100)/Orc/Orc with shadows/Orc-Walk.png";
+
+    const enemy = {
+        x: startX,
+        y: startY,
+        speed: 0.8,
+        frameX: 0,
+        frameY: 0,
+        frameSize: 100,
+        maxFrames: 6,
+        animCounter: 0,
+        animSpeed: 12,
+        scale: 2
+    };
+
+    function update(player) {
+        const dx = player.x - enemy.x;
+        const dy = player.y - enemy.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance === 0) return;
+
+        enemy.x += (dx / distance) * enemy.speed;
+        enemy.y += (dy / distance) * enemy.speed;
+
+        enemy.animCounter++;
+        if (enemy.animCounter >= enemy.animSpeed) {
+            enemy.animCounter = 0;
+            enemy.frameX = (enemy.frameX + 1) % enemy.maxFrames;
+        }
+    }
+
+    function draw() {
+        const size = enemy.frameSize * enemy.scale * camera.zoom;
+        const drawX = (enemy.x - camera.x) * camera.zoom - size / 2;
+        const drawY = (enemy.y - camera.y) * camera.zoom - size / 2;
+
+        ctx.drawImage(
+            sprite,
+            enemy.frameX * enemy.frameSize,
+            enemy.frameY * enemy.frameSize,
+            enemy.frameSize,
+            enemy.frameSize,
+            drawX,
+            drawY,
+            size,
+            size
+        );
+    }
+
+    return { enemy, update, draw };
+}
