@@ -3,6 +3,6 @@ window.addEventListener('load', function() {
     // Attendre 5 secondes avant de rediriger
     setTimeout(function() {
         // Rediriger vers la page principale (index.html)
-        window.location.href = '../index.html';
+        window.location.href = 'menu.html';
     }, 5000);
 });
