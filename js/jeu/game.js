@@ -111,8 +111,8 @@ function loop() {
     ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
 
     // HUD - Barre d'expérience (haut centre)
-    const expBarWidth = 300;
-    const expBarHeight = 12;
+    const expBarWidth = 500;
+    const expBarHeight = 17;
     const expBarX = (canvas.width / 2) - (expBarWidth / 2);
     const expBarY = 10;
     const expRatio = playerController.player.exp / playerController.player.maxExp;
@@ -123,6 +123,12 @@ function loop() {
     ctx.fillRect(expBarX, expBarY, expBarWidth, expBarHeight);
     ctx.fillStyle = "rgb(196, 138, 31)";
     ctx.fillRect(expBarX, expBarY, expBarWidth * expRatio, expBarHeight);
+
+    ctx.fillStyle = "white";
+    ctx.font = "bold 11px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`level : ${playerController.player.level}`, canvas.width / 2, expBarY + expBarHeight / 2);
 
     requestAnimationFrame(loop);
 }
