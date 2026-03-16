@@ -5,7 +5,7 @@ function createEnemyController(canvas, ctx, camera, startX = 800, startY = 800) 
     const enemy = {
         x: startX,
         y: startY,
-        speed: 0.8,
+        speed: 1.55,
         frameX: 0,
         frameY: 0,
         frameSize: 100,
