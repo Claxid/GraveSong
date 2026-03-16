@@ -35,3 +35,10 @@ if (playButton) {
 		window.location.href = 'map1_test.html';
 	});
 }
+
+if (loreButton) {
+	loreButton.addEventListener('click', () => {
+		saveAudioTime();
+		window.location.href = 'lore.html';
+	});
+}

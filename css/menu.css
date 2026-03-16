@@ -1,3 +1,6 @@
+/* Styles du menu */
+/* Fond sombre, titre gothique, bouton avec hover. */
+
 * {
 	margin: 0;
 	padding: 0;
@@ -12,6 +15,7 @@ body {
 
 body {
 	font-family: 'Cinzel Decorative', serif;
+	/* Fond avec l'image de chargement. */
 	background: #000 url('../assets/images/image_chargement.png') center center / cover no-repeat fixed;
 	color: #e7e0d2;
 	overflow: hidden;
@@ -34,6 +38,7 @@ body {
 	letter-spacing: 0.12em;
 	text-transform: uppercase;
 	color: rgba(231, 224, 210, 0.9);
+	/* Ombre pour effet gothique. */
 	text-shadow: 0 0 6px rgba(255, 255, 255, 0.18), 0 0 18px rgba(0, 0, 0, 0.85);
 }
 
@@ -42,9 +47,11 @@ body {
 	background: linear-gradient(180deg, rgba(38, 35, 33, 0.76), rgba(18, 16, 14, 0.88));
 	color: #e7e0d2;
 	padding: 0.9rem 2.8rem;
+	width: 200px;
 	font-family: inherit;
 	font-size: clamp(1rem, 2.2vw, 1.5rem);
 	letter-spacing: 0.08em;
+	text-align: center;
 	text-transform: uppercase;
 	cursor: pointer;
 	transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
@@ -60,5 +67,33 @@ body {
 }
 
 .play-button:active {
+	transform: translateY(0);
+}
+
+.lore-button {
+	border: 1px solid rgba(215, 202, 178, 0.6);
+	background: linear-gradient(180deg, rgba(38, 35, 33, 0.76), rgba(18, 16, 14, 0.88));
+	color: #e7e0d2;
+	padding: 0.9rem 2.8rem;
+	width: 200px;
+	font-family: inherit;
+	font-size: clamp(1rem, 2.2vw, 1.5rem);
+	letter-spacing: 0.08em;
+	text-align: center;
+	text-transform: uppercase;
+	cursor: pointer;
+	transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+	box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+}
+
+.lore-button:hover,
+.lore-button:focus-visible {
+	transform: translateY(-2px);
+	border-color: rgba(245, 231, 201, 0.9);
+	box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45), 0 0 10px rgba(245, 231, 201, 0.22);
+	outline: none;
+}
+
+.lore-button:active {
 	transform: translateY(0);
 }

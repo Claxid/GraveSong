@@ -1,3 +1,7 @@
+// Gestion des collisions
+// Liste des obstacles : murs et bordures.
+// Ces rectangles sont en coordonnées monde, pas écran.
+
 // LISTE DES OBSTACLES (rectangles en coordonnées MONDE)
 window.obstacles = [
     // Exemple bordures (tu ajusteras après)
@@ -7,7 +11,8 @@ window.obstacles = [
     { x: 3184, y: 0, w: 16, h: 3200 }
 ];
 
-// COLLISION RECTANGLE vs RECTANGLE 
+// COLLISION RECTANGLE vs RECTANGLE
+// Cette fonction vérifie si deux rectangles se chevauchent. Utile pour les collisions player/obstacles.
 window.rectCollision = function(px, py, pw, ph, rx, ry, rw, rh) {
     return px < rx + rw &&
            px + pw > rx &&
@@ -15,14 +20,16 @@ window.rectCollision = function(px, py, pw, ph, rx, ry, rw, rh) {
            py + ph > ry;
 };
 
-// DEBUG VISUEL F2 
+// DEBUG VISUEL F2
+// Debug colliders en rouge avec F2.
 let debugColliders = false;
 
 window.addEventListener("keydown", e => {
     if (e.key === "F2") debugColliders = !debugColliders;
 });
 
-// Cette fonction est appelée depuis game.js (après drawMap et drawPlayer)
+// Cette fonction est appelée depuis game.js après drawMap et drawPlayer.
+// Dessine les colliders en overlay si debug activé.
 window.drawCollidersOverlay = function(ctx, camera, zoom) {
     if (!debugColliders) return;
 
@@ -44,6 +51,7 @@ window.drawCollidersOverlay = function(ctx, camera, zoom) {
 };
 
 // ÉDITEUR F3 POUR AJOUTER DES HITBOX
+// Éditeur F3 pour ajouter des obstacles en cliquant.
 let editorOn = false;
 let tempStart = null;
 
