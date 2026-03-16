@@ -8,6 +8,8 @@ function createEnemyController(canvas, ctx, camera, startX = 800, startY = 800) 
 
     // Propriétés de l'ennemi : position, vitesse, animation, etc.
     const enemy = {
+        spawnX: startX,
+        spawnY: startY,
         x: startX,
         y: startY,
         speed: 1.55,
@@ -26,6 +28,20 @@ function createEnemyController(canvas, ctx, camera, startX = 800, startY = 800) 
 
     // Update : fait bouger l'ennemi vers le joueur.
     function update(player) {
+        if (enemy.hp <= 0) {
+            enemy.x = enemy.spawnX;
+            enemy.y = enemy.spawnY;
+            enemy.hp = enemy.maxhp;
+            player.exp += 20;
+
+        // Gère le level up du joueur
+        while (player.exp >= player.maxExp) {
+            player.exp -= player.maxExp;
+            player.level += 1;
+            player.maxExp += player.maxExp * 0.2;
+            }
+        }
+
         const dx = player.x - enemy.x;
         const dy = player.y - enemy.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
