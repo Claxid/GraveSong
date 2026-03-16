@@ -1,7 +1,12 @@
+// Contrôleur du joueur
+// Le joueur se déplace avec ZQSD et a des animations selon la direction.
+
 function createPlayerController(canvas, ctx, camera) {
+    // Sprite du soldat.
     const sprite = new Image();
     sprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier/Soldier-Walk.png";
 
+    // Gestion des touches appuyées.
     const keys = {};
     document.addEventListener("keydown", (e) => {
         keys[e.key] = true;
@@ -10,6 +15,7 @@ function createPlayerController(canvas, ctx, camera) {
         keys[e.key] = false;
     });
 
+    // Clic sur canvas pour debug (affiche les coordonnées écran).
     canvas.addEventListener("click", (e) => {
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
@@ -17,10 +23,11 @@ function createPlayerController(canvas, ctx, camera) {
         console.log(x, y);
     });
 
+    // Propriétés du joueur : position, vitesse, animation.
     const player = {
         x: 500,
         y: 500,
-        speed: 1.5,
+        speed: 2,
         frameX: 0,
         frameY: 0,
         frameSize: 100,
@@ -42,7 +49,7 @@ function createPlayerController(canvas, ctx, camera) {
 
         if (keys["z"]) {
             player.y -= player.speed;
-            player.frameY = 0;
+            player.frameY = 0; // Haut
             moving = true;
         }
         if (keys["s"]) {
@@ -70,10 +77,11 @@ function createPlayerController(canvas, ctx, camera) {
                 player.frameX = (player.frameX + 1) % player.maxFrames;
             }
         } else {
-            player.frameX = 0;
+            player.frameX = 0; // Frame statique
         }
     }
 
+    // Draw : dessine le joueur avec la caméra.
     function draw() {
         const size = player.frameSize * player.scale * camera.zoom;
         const drawX = (player.x - camera.x) * camera.zoom - size / 2;

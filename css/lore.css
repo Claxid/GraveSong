@@ -1,0 +1,37 @@
+body {
+    font-family: 'Cinzel Decorative', serif;
+    background: #000 url('../assets/images/parchemin.webp') center center / cover no-repeat fixed;
+    color: #000000;
+    overflow: auto;
+}
+
+.lore {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 3rem 1rem;
+    min-height: 100vh;
+    text-align: center;
+}
+
+.lore-text {
+    max-width: 900px;
+    border-radius: 18px;
+    padding: 2.2rem 2.4rem;
+    max-height: 80vh;
+    text-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
+}
+
+.lore-text p {
+    margin: 1.25rem 0;
+    line-height: 1.6;
+    letter-spacing: 0.02em;
+}
+
+.lore-text p:first-child {
+    margin-top: 0;
+}
+
+.lore-text p:last-child {
+    margin-bottom: 0;
+}
