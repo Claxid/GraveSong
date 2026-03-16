@@ -20,7 +20,7 @@ function createPlayerController(canvas, ctx, camera) {
     const player = {
         x: 500,
         y: 500,
-        speed: 1.5,
+        speed: 2,
         frameX: 0,
         frameY: 0,
         frameSize: 100,
