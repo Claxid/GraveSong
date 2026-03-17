@@ -26,6 +26,7 @@ const ENEMY_KILL_EXP = 20;
 const CONTACT_DAMAGE = 5;
 const DAMAGE_COOLDOWN_MS = 500;
 const SHOW_HITBOXES = false;
+const isMap1 = window.location.pathname.replace(/\\/g, "/").endsWith("/template/map1.html");
 const isVilleMap = window.location.pathname.replace(/\\/g, "/").endsWith("/template/ville.html");
 const map1PortalZone = {
     x: 2270,
@@ -78,6 +79,7 @@ function givePlayerExp(amount) {
 }
 
 for (let i = 0; i < INITIAL_ENEMY_COUNT; i++) {
+    if (!isMap1) break;
     spawnEnemyNearPlayer();
 }
 
@@ -119,6 +121,11 @@ function loop() {
     const canUpdateWorld = !playerController.hasPendingPerks();
 
     if (canUpdateWorld) {
+        const enemies = isMap1 ? enemyControllers.map((controller) => controller.enemy) : [];
+        playerController.update(enemies);
+    }
+
+    if (canUpdateWorld && isMap1) {
         const now = performance.now();
         const maxEnemies = getMaxEnemyCount(now);
         if (enemyControllers.length < maxEnemies && now - lastSpawnAt >= SPAWN_INTERVAL_MS) {
@@ -126,8 +133,6 @@ function loop() {
             lastSpawnAt = now;
         }
 
-        const enemies = enemyControllers.map((controller) => controller.enemy);
-        playerController.update(enemies);
         for (const enemyController of enemyControllers) {
             enemyController.update(playerController.player);
         }
@@ -173,6 +178,12 @@ function loop() {
     }
 
     if (playerController.player.hp <= 0) {
+        if (!isVilleMap && !isChangingMap) {
+            isChangingMap = true;
+            window.location.href = "ville.html";
+            return;
+        }
+
         playerController.player.x = playerController.player.spawnX;
         playerController.player.y = playerController.player.spawnY;
         playerController.player.hp = playerController.player.maxHp;
