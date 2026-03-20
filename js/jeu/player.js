@@ -5,12 +5,21 @@ function createPlayerController(canvas, ctx, camera) {
     const sprite = new Image();
     sprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier/Soldier-Walk.png";
 
+
+
     const attackSprite = new Image();
     attackSprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier(Split Effects)/Soldier-Attack01_Effect.png";
     let attackEffectFrames = 6;
     attackSprite.addEventListener("load", () => {
         attackEffectFrames = Math.max(1, Math.floor(attackSprite.width / 100));
     });
+
+    const attacks = [];
+    let lastAttackTime = 0;
+    const ATTACK_COOLDOWN = 2000;
+    const ATTACK_DAMAGE = 10;
+    const ATTACK_ANIM_SPEED = 4;
+
 
     const keys = {};
     document.addEventListener("keydown", (e) => { keys[e.key.toLowerCase()] = true; });
