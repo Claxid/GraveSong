@@ -2,12 +2,13 @@ body {
     font-family: 'Cinzel Decorative', serif;
     background: #000 url('../assets/images/parchemin.webp') center center / cover no-repeat fixed;
     color: #000000;
-    overflow: auto;
+    font-size: 20px ;
 }
 
 .lore {
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    justify-content: flex-start;
     align-items: center;
     padding: 3rem 1rem;
     min-height: 100vh;
@@ -15,7 +16,7 @@ body {
 }
 
 .lore-text {
-    max-width: 900px;
+    max-width: 1000px;
     border-radius: 18px;
     padding: 2.2rem 2.4rem;
     max-height: 80vh;
@@ -24,7 +25,7 @@ body {
 
 .lore-text p {
     margin: 1.25rem 0;
-    line-height: 1.6;
+    line-height: 2;
     letter-spacing: 0.02em;
 }
 
@@ -34,4 +35,36 @@ body {
 
 .lore-text p:last-child {
     margin-bottom: 0;
+}
+
+.menu-button {
+    position: fixed;
+    top: 20px;      /* distance du haut */
+    left: 20px;     /* distance de la gauche */
+    border: 1px solid rgba(215, 202, 178, 0.6);
+	background: linear-gradient(180deg, rgba(38, 35, 33, 0.76), rgba(18, 16, 14, 0.88));
+	color: #e7e0d2;
+	padding: 0.9rem 2.8rem;
+	width: 200px;
+	font-family: inherit;
+	font-size: clamp(1rem, 2.2vw, 1.5rem);
+	letter-spacing: 0.08em;
+	text-align: center;
+	text-transform: uppercase;
+	cursor: pointer;
+	transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+	box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+}
+
+
+.menu-button:hover,
+.menu-button:focus-visible {
+    transform: translateY(-2px);
+    border-color: rgba(245, 231, 201, 0.9);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45), 0 0 10px rgba(245, 231, 201, 0.22);
+    outline: none;
+}
+
+.menu-button:active {
+    transform: translateY(0);
 }
