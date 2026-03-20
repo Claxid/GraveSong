@@ -1,27 +1,37 @@
 ﻿<!DOCTYPE html>
 <html>
 
+<!-- Page d'accueil -->
+<!-- Elle montre une image, joue la musique, et dit à l'utilisateur d'appuyer sur F11 puis partout pour continuer. -->
+
 <!--section head-->
 <head>
+    <!-- Lien vers le CSS principal. -->
     <link rel="stylesheet" href="css/style.css">
+    <!-- Police gothique pour le style. -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&display=swap" rel="stylesheet">
 
 </head>
 
 <!--section body-->
 <body>
+    <!-- Alerte pour passer en plein écran. -->
     <div id="alerteF11">
         <h2>appuyer sur F11</h2>
     </div>
 
+    <!-- Instruction pour cliquer. -->
     <div id="AppuyerPartout">
         <h3>Appuyer pour continuer</h3>
     </div>
 
+    <!-- Image d'accueil. -->
     <img src="assets/images/image.png" />
 
+    <!-- Audio qui joue en boucle. -->
     <audio id="myAudio" autoplay loop src="assets/audio/Cathedral_of_Unfinished_Prayers.mp3"></audio>
 
+    <!-- Scripts pour la logique. -->
     <script src="js/script.js"></script>
     <script src="js/PopUp.js"></script>
 </body>

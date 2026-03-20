@@ -1,3 +1,6 @@
+// Boucle principale du jeu
+// Fichier principal du jeu avec boucle, canvas, etc.
+
 // CANVAS PLEIN ECRAN + RESPONSIVE
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
@@ -9,6 +12,7 @@ function resizeCanvas() {
 }
 resizeCanvas();
 
+// Je crée les contrôleurs pour la map, la caméra, le joueur et l'ennemi.
 const mapRenderer = createMapRenderer(canvas, ctx);
 const cameraController = createCameraController(canvas, mapRenderer.MAP_WIDTH, mapRenderer.MAP_HEIGHT);
 const playerController = createPlayerController(canvas, ctx, cameraController.camera);
@@ -204,7 +208,7 @@ window.addEventListener("resize", () => {
     uiStyles = readUiStyles();
 });
 
-
+// La boucle principale du jeu : update et draw à chaque frame.
 function loop() {
     const canUpdateWorld = !playerController.hasPendingPerks();
 

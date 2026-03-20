@@ -35,3 +35,10 @@ if (playButton) {
 		window.location.href = 'ville.html';
 	});
 }
+
+if (loreButton) {
+	loreButton.addEventListener('click', () => {
+		saveAudioTime();
+		window.location.href = 'lore.html';
+	});
+}
