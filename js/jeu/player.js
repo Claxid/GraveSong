@@ -1,7 +1,12 @@
-function createPlayerController(canvas, ctx, camera) {
-    const sprite = new Image();
-    sprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier/Soldier.png";
+// Contrôleur du joueur
+// Le joueur se déplace avec ZQSD et a des animations selon la direction.
 
+function createPlayerController(canvas, ctx, camera) {
+    // Sprite du soldat.
+    const sprite = new Image();
+    sprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier/Soldier-Walk.png";
+
+    // Gestion des touches appuyées.
     const keys = {};
     document.addEventListener("keydown", (e) => {
         keys[e.key] = true;
@@ -10,6 +15,7 @@ function createPlayerController(canvas, ctx, camera) {
         keys[e.key] = false;
     });
 
+    // Clic sur canvas pour debug (affiche les coordonnées écran).
     canvas.addEventListener("click", (e) => {
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
@@ -17,18 +23,35 @@ function createPlayerController(canvas, ctx, camera) {
         console.log(x, y);
     });
 
+    // Propriétés du joueur : position, vitesse, animation.
     const player = {
+        spawnX: 1774,
+        spawnY: 2200,
         x: 1774,
         y: 2200,
-        speed: 3,
+        speed: 1.5,
         frameX: 0,
         frameY: 0,
         frameSize: 100,
-        maxFrames: 6,
+        maxFrames: 8,
         animCounter: 0,
         animSpeed: 10,
-        scale: 2
+        scale: 2,
+        hp : 100,
+        maxHp : 100,
+        exp : 0,
+        maxExp : 100,
+        level : 1,
+        hitW: 40,
+        hitH: 60
     };
+
+    let facingLeft = false;
+
+    sprite.addEventListener("load", () => {
+        // Adapt to the actual number of frames in the loaded walk sprite sheet.
+        player.maxFrames = Math.max(1, Math.floor(sprite.width / player.frameSize));
+    });
 
     function update() {
         let moving = false;
@@ -38,35 +61,25 @@ function createPlayerController(canvas, ctx, camera) {
         const playerHeight = 50;
 
         if (keys["z"]) {
-            const newY = player.y - player.speed;
-            if (!checkAllObstacles(player.x - playerWidth/2, newY - playerHeight/2, playerWidth, playerHeight)) {
-                player.y = newY;
-            }
-            player.frameY = 0;
+            player.y -= player.speed;
+            player.frameY = 0; // Haut
             moving = true;
         }
         if (keys["s"]) {
-            const newY = player.y + player.speed;
-            if (!checkAllObstacles(player.x - playerWidth/2, newY - playerHeight/2, playerWidth, playerHeight)) {
-                player.y = newY;
-            }
-            player.frameY = 1;
+            player.y += player.speed;
+            player.frameY = 0;
             moving = true;
         }
         if (keys["q"]) {
-            const newX = player.x - player.speed;
-            if (!checkAllObstacles(newX - playerWidth/2, player.y - playerHeight/2, playerWidth, playerHeight)) {
-                player.x = newX;
-            }
-            player.frameY = 2;
+            player.x -= player.speed;
+            player.frameY = 0;
+            facingLeft = true;
             moving = true;
         }
         if (keys["d"]) {
-            const newX = player.x + player.speed;
-            if (!checkAllObstacles(newX - playerWidth/2, player.y - playerHeight/2, playerWidth, playerHeight)) {
-                player.x = newX;
-            }
-            player.frameY = 3;
+            player.x += player.speed;
+            player.frameY = 0;
+            facingLeft = false;
             moving = true;
         }
 
@@ -77,23 +90,36 @@ function createPlayerController(canvas, ctx, camera) {
                 player.frameX = (player.frameX + 1) % player.maxFrames;
             }
         } else {
-            player.frameX = 0;
+            player.frameX = 0; // Frame statique
         }
-    }
-    
-    function checkAllObstacles(px, py, pw, ph) {
-        for (const obs of window.obstacles || []) {
-            if (window.rectCollision(px, py, pw, ph, obs.x, obs.y, obs.w, obs.h)) {
-                return true;
-            }
-        }
-        return false;
     }
 
+    // Draw : dessine le joueur avec la caméra.
     function draw() {
         const size = player.frameSize * player.scale * camera.zoom;
         const drawX = (player.x - camera.x) * camera.zoom - size / 2;
         const drawY = (player.y - camera.y) * camera.zoom - size / 2;
+
+        if (facingLeft) {
+            ctx.save();
+            ctx.translate(drawX + size, drawY);
+            ctx.scale(-1, 1);
+
+            ctx.drawImage(
+                sprite,
+                player.frameX * player.frameSize,
+                player.frameY * player.frameSize,
+                player.frameSize,
+                player.frameSize,
+                0,
+                0,
+                size,
+                size
+            );
+
+            ctx.restore();
+            return;
+        }
 
         ctx.drawImage(
             sprite,
