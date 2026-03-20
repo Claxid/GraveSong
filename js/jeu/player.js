@@ -6,6 +6,13 @@ function createPlayerController(canvas, ctx, camera) {
     const sprite = new Image();
     sprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier/Soldier-Walk.png";
 
+    const hurtSprite = new Image();
+    hurtSprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier with shadows/Soldier-Hurt.png";
+    let hurtFrames = 1;
+    hurtSprite.addEventListener("load", () => {
+        hurtFrames = Math.max(1, Math.floor(hurtSprite.width / 100));
+    });
+
     const attackSprite = new Image();
     attackSprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier(Split Effects)/Soldier-Attack01_Effect.png";
     let attackEffectFrames = 6;
@@ -171,6 +178,8 @@ function createPlayerController(canvas, ctx, camera) {
     };
 
     let facingLeft = false;
+    let hurtUntil = 0;
+    const HURT_DURATION_MS = 180;
 
     sprite.addEventListener("load", () => {
         // Adapt to the actual number of frames in the loaded walk sprite sheet.
@@ -279,6 +288,10 @@ function createPlayerController(canvas, ctx, camera) {
         const size = player.frameSize * player.scale * camera.zoom;
         const drawX = (player.x - camera.x) * camera.zoom - size / 2;
         const drawY = (player.y - camera.y) * camera.zoom - size / 2;
+        const hurtActive = performance.now() < hurtUntil && hurtSprite.complete && hurtSprite.naturalWidth > 0;
+        const activeSprite = hurtActive ? hurtSprite : sprite;
+        const activeMaxFrames = hurtActive ? hurtFrames : player.maxFrames;
+        const activeFrameX = Math.min(player.frameX, activeMaxFrames - 1);
 
         if (facingLeft) {
             ctx.save();
@@ -286,8 +299,8 @@ function createPlayerController(canvas, ctx, camera) {
             ctx.scale(-1, 1);
 
             ctx.drawImage(
-                sprite,
-                player.frameX * player.frameSize,
+                activeSprite,
+                activeFrameX * player.frameSize,
                 player.frameY * player.frameSize,
                 player.frameSize,
                 player.frameSize,
@@ -302,8 +315,8 @@ function createPlayerController(canvas, ctx, camera) {
         }
 
         ctx.drawImage(
-            sprite,
-            player.frameX * player.frameSize,
+            activeSprite,
+            activeFrameX * player.frameSize,
             player.frameY * player.frameSize,
             player.frameSize,
             player.frameSize,
@@ -332,6 +345,10 @@ function createPlayerController(canvas, ctx, camera) {
         }
     }
 
+    function triggerHurt() {
+        hurtUntil = performance.now() + HURT_DURATION_MS;
+    }
+
     return {
         player,
         update,
@@ -341,6 +358,7 @@ function createPlayerController(canvas, ctx, camera) {
         getCurrentPerkChoices,
         hasPendingPerks,
         applyPerkByIndex,
+        triggerHurt,
         getAttackStats: () => ({ ...attackStats })
     };
 }

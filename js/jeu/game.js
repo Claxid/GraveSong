@@ -272,6 +272,7 @@ function loop() {
             const now = performance.now();
             if (now - lastContactDamageAt >= DAMAGE_COOLDOWN_MS) {
                 playerController.player.hp = Math.max(0, playerController.player.hp - CONTACT_DAMAGE);
+                playerController.triggerHurt();
                 lastContactDamageAt = now;
             }
         }
