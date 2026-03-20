@@ -32,7 +32,7 @@ if (audio) {
 if (playButton) {
 	playButton.addEventListener('click', () => {
 		saveAudioTime();
-		window.location.href = 'map1_test.html';
+		window.location.href = 'ville.html';
 	});
 }
 
