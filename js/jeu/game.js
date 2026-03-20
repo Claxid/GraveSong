@@ -186,6 +186,33 @@ window.addEventListener("keydown", (e) => {
     }
 });
 
+canvas.addEventListener("click", (e) => {
+    const choices = playerController.getCurrentPerkChoices();
+    if (!choices) return;
+
+    const canvasRect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / canvasRect.width;
+    const scaleY = canvas.height / canvasRect.height;
+    const clickX = (e.clientX - canvasRect.left) * scaleX;
+    const clickY = (e.clientY - canvasRect.top) * scaleY;
+
+    const layout = getPerkOverlayLayout(choices.length);
+    if (!layout) return;
+
+    for (let i = 0; i < layout.cards.length; i++) {
+        const card = layout.cards[i];
+        const insideX = clickX >= card.x && clickX <= card.x + card.w;
+        const insideY = clickY >= card.y && clickY <= card.y + card.h;
+        if (!insideX || !insideY) continue;
+
+        const applied = playerController.applyPerkByIndex(i);
+        if (applied) {
+            e.preventDefault();
+        }
+        break;
+    }
+});
+
 function getEntityHitbox(entity) {
     return {
         x: entity.x - entity.hitW / 2,
@@ -390,11 +417,46 @@ function loop() {
     requestAnimationFrame(loop);
 }
 
-function drawPerkOverlay(choices) {
+function getPerkOverlayLayout(choiceCount) {
+    if (!choiceCount || choiceCount <= 0) return null;
+
     const panelWidth = Math.min(uiStyles.perkPanelMaxWidth, canvas.width - uiStyles.perkPanelSideMargin);
     const panelHeight = uiStyles.perkPanelHeight;
     const panelX = (canvas.width - panelWidth) / 2;
     const panelY = (canvas.height - panelHeight) / 2;
+
+    const gap = uiStyles.perkCardGap;
+    const cardY = panelY + uiStyles.perkCardTopOffset;
+    const cardHeight = uiStyles.perkCardHeight;
+    const cardWidth = (panelWidth - (gap * (choiceCount + 1))) / choiceCount;
+    const cards = [];
+
+    for (let i = 0; i < choiceCount; i++) {
+        cards.push({
+            x: panelX + gap + i * (cardWidth + gap),
+            y: cardY,
+            w: cardWidth,
+            h: cardHeight
+        });
+    }
+
+    return {
+        panelX,
+        panelY,
+        panelWidth,
+        panelHeight,
+        cards
+    };
+}
+
+function drawPerkOverlay(choices) {
+    const layout = getPerkOverlayLayout(choices.length);
+    if (!layout) return;
+
+    const panelWidth = layout.panelWidth;
+    const panelHeight = layout.panelHeight;
+    const panelX = layout.panelX;
+    const panelY = layout.panelY;
 
     ctx.save();
 
@@ -413,13 +475,12 @@ function drawPerkOverlay(choices) {
     ctx.textBaseline = "top";
     ctx.fillText("Choisis un perk", canvas.width / 2, panelY + 18);
 
-    const gap = uiStyles.perkCardGap;
-    const cardY = panelY + uiStyles.perkCardTopOffset;
-    const cardHeight = uiStyles.perkCardHeight;
-    const cardWidth = (panelWidth - (gap * 4)) / 3;
-
     for (let i = 0; i < choices.length; i++) {
-        const cardX = panelX + gap + i * (cardWidth + gap);
+        const card = layout.cards[i];
+        const cardX = card.x;
+        const cardY = card.y;
+        const cardWidth = card.w;
+        const cardHeight = card.h;
         const perk = choices[i];
 
         ctx.fillStyle = uiStyles.perkCardBackground;
