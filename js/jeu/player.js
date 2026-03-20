@@ -18,9 +18,9 @@ function createPlayerController(canvas, ctx, camera) {
     });
 
     const player = {
-        x: 500,
-        y: 500,
-        speed: 1.5,
+        x: 1774,
+        y: 2200,
+        speed: 3,
         frameX: 0,
         frameY: 0,
         frameSize: 100,
@@ -32,24 +32,40 @@ function createPlayerController(canvas, ctx, camera) {
 
     function update() {
         let moving = false;
+        
+        // Taille du hitbox du joueur
+        const playerWidth = 50;
+        const playerHeight = 50;
 
         if (keys["z"]) {
-            player.y -= player.speed;
+            const newY = player.y - player.speed;
+            if (!checkAllObstacles(player.x - playerWidth/2, newY - playerHeight/2, playerWidth, playerHeight)) {
+                player.y = newY;
+            }
             player.frameY = 0;
             moving = true;
         }
         if (keys["s"]) {
-            player.y += player.speed;
+            const newY = player.y + player.speed;
+            if (!checkAllObstacles(player.x - playerWidth/2, newY - playerHeight/2, playerWidth, playerHeight)) {
+                player.y = newY;
+            }
             player.frameY = 1;
             moving = true;
         }
         if (keys["q"]) {
-            player.x -= player.speed;
+            const newX = player.x - player.speed;
+            if (!checkAllObstacles(newX - playerWidth/2, player.y - playerHeight/2, playerWidth, playerHeight)) {
+                player.x = newX;
+            }
             player.frameY = 2;
             moving = true;
         }
         if (keys["d"]) {
-            player.x += player.speed;
+            const newX = player.x + player.speed;
+            if (!checkAllObstacles(newX - playerWidth/2, player.y - playerHeight/2, playerWidth, playerHeight)) {
+                player.x = newX;
+            }
             player.frameY = 3;
             moving = true;
         }
@@ -63,6 +79,15 @@ function createPlayerController(canvas, ctx, camera) {
         } else {
             player.frameX = 0;
         }
+    }
+    
+    function checkAllObstacles(px, py, pw, ph) {
+        for (const obs of window.obstacles || []) {
+            if (window.rectCollision(px, py, pw, ph, obs.x, obs.y, obs.w, obs.h)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     function draw() {

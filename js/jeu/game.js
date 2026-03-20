@@ -36,6 +36,11 @@ function loop() {
     // ENNEMI
     enemyController.draw();
 
+    // COLLISIONS (DEBUG)
+    if (window.drawCollidersOverlay) {
+        window.drawCollidersOverlay(ctx, cameraController.camera, cameraController.camera.zoom);
+    }
+
     requestAnimationFrame(loop);
 }
 loop();
