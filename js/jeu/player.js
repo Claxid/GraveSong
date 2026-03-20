@@ -44,7 +44,7 @@ function createPlayerController(canvas, ctx, camera) {
         spawnY: 2200,
         x: 1774,
         y: 2200,
-        speed: 1.5,
+        speed: 6,
         frameX: 0,
         frameY: 0,
         frameSize: 100,
