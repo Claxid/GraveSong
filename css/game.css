@@ -1,0 +1,52 @@
+:root {
+	--hud-hp-bar-width: 200;
+	--hud-hp-bar-height: 20;
+	--hud-hp-offset-left: 20;
+	--hud-hp-offset-bottom: 40;
+	--hud-bar-border-padding: 2;
+	--hud-bar-background-color: #555;
+	--hud-hp-border-color: #000;
+	--hud-hp-fill-color: rgb(140, 16, 16);
+
+	--hud-exp-bar-width: 500;
+	--hud-exp-bar-height: 17;
+	--hud-exp-offset-top: 10;
+	--hud-exp-border-color: #000;
+	--hud-exp-fill-color: rgb(196, 138, 31);
+
+	--hud-level-text-color: #fff;
+	--hud-level-font: bold 11px Arial;
+
+	--hud-kill-text-color: #fff;
+	--hud-kill-font: bold 20px Arial;
+	--hud-kill-offset-right: 20;
+	--hud-kill-offset-top: 20;
+
+	--hitbox-player-color: #00ff00;
+	--hitbox-enemy-color: #ff0000;
+
+	--perk-overlay-backdrop: rgba(0, 0, 0, 0.7);
+	--perk-panel-background: rgba(24, 24, 24, 0.95);
+	--perk-panel-border-color: #d4af37;
+	--perk-panel-border-width: 2;
+	--perk-title-color: #f7e9ba;
+	--perk-title-font: bold 28px Arial;
+
+	--perk-panel-max-width: 900;
+	--perk-panel-height: 260;
+	--perk-panel-side-margin: 60;
+	--perk-card-gap: 16;
+	--perk-card-top-offset: 70;
+	--perk-card-height: 160;
+
+	--perk-card-background: #2b2b2b;
+	--perk-card-border-color: #8f7b3f;
+	--perk-number-color: #f5d26a;
+	--perk-number-font: bold 22px Arial;
+	--perk-name-color: #fff;
+	--perk-name-font: bold 18px Arial;
+	--perk-description-color: #d1d1d1;
+	--perk-description-font: 15px Arial;
+	--perk-hint-color: #c0b080;
+	--perk-hint-font: bold 14px Arial;
+}
