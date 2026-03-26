@@ -355,6 +355,10 @@ function loop() {
         enemyController.draw();
     }
 
+    if (window.drawCollidersOverlay) {
+        window.drawCollidersOverlay(ctx, cameraController.camera, cameraController.camera.zoom);
+    }
+
     if (SHOW_HITBOXES) {
         ctx.save();
         ctx.lineWidth = 2;
