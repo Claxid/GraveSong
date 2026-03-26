@@ -17,6 +17,7 @@ const mapRenderer = createMapRenderer(canvas, ctx);
 const cameraController = createCameraController(canvas, mapRenderer.MAP_WIDTH, mapRenderer.MAP_HEIGHT);
 const playerController = createPlayerController(canvas, ctx, cameraController.camera);
 const enemyControllers = [];
+const pnjControllers = [];
 
 const SPAWN_RING_MIN = 500;
 const SPAWN_RING_MAX = 700;
@@ -142,6 +143,10 @@ function spawnEnemyNearPlayer() {
     enemyControllers.push(createEnemyController(canvas, ctx, cameraController.camera, spawn.x, spawn.y));
 }
 
+function spawnPnj(x, y) {
+    pnjControllers.push(createpnjController(canvas, ctx, cameraController.camera, x, y));
+}
+
 function getMaxEnemyCount(now) {
     const elapsed = now - gameStartAt;
     const growthSteps = Math.floor(elapsed / ENEMY_GROWTH_EVERY_MS);
@@ -172,6 +177,17 @@ function givePlayerExp(amount) {
 for (let i = 0; i < INITIAL_ENEMY_COUNT; i++) {
     if (!isMap1) break;
     spawnEnemyNearPlayer();
+}
+
+// SPAWN DES PNJ statiques (uniquement dans la ville)
+if (isVilleMap) {
+    spawnPnj(1700, 2000);
+    spawnPnj(2200, 1250);
+    spawnPnj(2200, 2250);
+    spawnPnj(1975, 2500);
+    spawnPnj(1350, 2375);
+    spawnPnj(3150, 1225);
+    spawnPnj(2875, 2950);
 }
 
 window.addEventListener("keydown", (e) => {
@@ -206,9 +222,7 @@ canvas.addEventListener("click", (e) => {
         if (!insideX || !insideY) continue;
 
         const applied = playerController.applyPerkByIndex(i);
-        if (applied) {
-            e.preventDefault();
-        }
+        if (applied) e.preventDefault();
         break;
     }
 });
@@ -235,7 +249,7 @@ window.addEventListener("resize", () => {
     uiStyles = readUiStyles();
 });
 
-// La boucle principale du jeu : update et draw à chaque frame.
+// Boucle du jeu
 function loop() {
     const canUpdateWorld = !playerController.hasPendingPerks();
 
@@ -263,6 +277,20 @@ function loop() {
             enemyController.update(playerController.player);
         }
 
+        // PNJ statiques
+        for (const pnj of pnjControllers) {
+            pnj.update();
+        }
+
+        // JOUEUR
+        playerController.draw();
+
+        // PNJ
+        for (const pnj of pnjControllers) {
+            pnj.draw();
+        }
+
+        // Suppression ennemis morts
         for (let i = enemyControllers.length - 1; i >= 0; i--) {
             if (enemyControllers[i].enemy.hp > 0) continue;
             enemyControllers.splice(i, 1);
@@ -279,6 +307,7 @@ function loop() {
 
     const playerHitbox = getEntityHitbox(playerController.player);
 
+    // PORTAIL ville -> map1
     if (isVilleMap && !isChangingMap && isRectOverlap(playerHitbox, map1PortalZone)) {
         isChangingMap = true;
         window.location.href = "map1.html";
@@ -317,23 +346,28 @@ function loop() {
         lastContactDamageAt = performance.now();
     }
 
-    // Mettre à jour la caméra (centrer sur le joueur)
+    // CAMERA
     cameraController.centerOn(playerController.player.x, playerController.player.y);
 
-    // FOND = MAP
+    // MAP
     mapRenderer.draw(cameraController.camera);
+     // PNJ
+        for (const pnj of pnjControllers) {
+            pnj.draw();
+        }
 
     // JOUEUR
     playerController.draw();
 
-    // EFFETS D'ATTAQUE (dessinés après le joueur, avant les ennemis)
+    // ATTAQUES
     playerController.drawAttacks();
 
-    // ENNEMI
+    // ENNEMIS
     for (const enemyController of enemyControllers) {
         enemyController.draw();
     }
 
+    // HITBOX DEBUG
     if (SHOW_HITBOXES) {
         ctx.save();
         ctx.lineWidth = 2;
@@ -358,7 +392,7 @@ function loop() {
         ctx.restore();
     }
 
-    // HUD - Barre de vie (bas gauche)
+    // HUD (HP)
     const barX = uiStyles.hpOffsetLeft;
     const barY = canvas.height - uiStyles.hpOffsetBottom;
     const barWidth = uiStyles.hpBarWidth;
@@ -377,7 +411,7 @@ function loop() {
     ctx.fillStyle = uiStyles.hpFillColor;
     ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
 
-    // HUD - Barre d'expérience (haut centre)
+    // HUD (EXP)
     const expBarWidth = uiStyles.expBarWidth;
     const expBarHeight = uiStyles.expBarHeight;
     const expBarX = (canvas.width / 2) - (expBarWidth / 2);
@@ -402,7 +436,7 @@ function loop() {
     ctx.textBaseline = "middle";
     ctx.fillText(`level : ${playerController.player.level}`, canvas.width / 2, expBarY + expBarHeight / 2);
 
-    // HUD - Compteur de kills (haut droite)
+    // HUD (Kills)
     ctx.fillStyle = uiStyles.killTextColor;
     ctx.font = uiStyles.killFont;
     ctx.textAlign = "right";
@@ -508,4 +542,5 @@ function drawPerkOverlay(choices) {
 
     ctx.restore();
 }
+
 loop();
