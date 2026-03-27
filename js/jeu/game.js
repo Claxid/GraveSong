@@ -377,6 +377,12 @@ function loop() {
     ctx.fillStyle = uiStyles.hpFillColor;
     ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
 
+    ctx.fillStyle = uiStyles.levelTextColor;
+    ctx.font = uiStyles.levelFont;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`${playerController.player.hp}/${playerController.player.maxHp}`, barX + barWidth / 2, barY + barHeight / 2);
+
     // HUD - Barre d'expérience (haut centre)
     const expBarWidth = uiStyles.expBarWidth;
     const expBarHeight = uiStyles.expBarHeight;
