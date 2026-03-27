@@ -6,25 +6,25 @@ const ENEMY_TYPE_CONFIGS = {
         spriteSrc: "../assets/sprites/Characters(100x100)/Orc/Orc with shadows/Orc-Walk.png",
         frameSize: 100,
         maxFrames: 6,
-        speed: 1.75,
-        animSpeed: 10,
-        scale: 1.9,
+        speed: 1.52,
+        animSpeed: 12,
+        scale: 2,
         hp: 20,
         maxhp: 20,
-        hitW: 34,
-        hitH: 48
+        hitW: 40,
+        hitH: 60
     },
     orc3: {
         spriteSrc: "../assets/sprites/Orc3/orc3_walk/orc3_walk_full.png",
         frameSize: 64,
         maxFrames: 6,
-        speed: 1.45,
-        animSpeed: 11,
-        scale: 2.05,
-        hp: 120,
-        maxhp: 120,
-        hitW: 30,
-        hitH: 42
+        speed: 1.75,
+        animSpeed: 10,
+        scale: 1.8,
+        hp: 16,
+        maxhp: 16,
+        hitW: 38,
+        hitH: 56
     }
 };
 

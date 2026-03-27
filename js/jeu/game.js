@@ -28,7 +28,7 @@ const SPAWN_INTERVAL_DECAY_EVERY_MS = 15000;
 const BASE_SPAWN_BATCH_SIZE = 1;
 const MAX_SPAWN_BATCH_SIZE = 4;
 const SPAWN_BATCH_GROWTH_EVERY_MS = 30000;
-const INITIAL_ENEMY_COUNT = 5;
+const INITIAL_ENEMY_COUNT = 4;
 const BASE_MAX_ENEMIES = 7;
 const ENEMY_GROWTH_EVERY_MS = 20000;
 const ENEMIES_PER_GROWTH_STEP = 3;
@@ -308,21 +308,9 @@ function loop() {
     }
 
     if (playerController.player.level > lastProcessedLevel) {
-        const currentLevel = playerController.player.level;
-
-        for (let level = lastProcessedLevel + 1; level <= currentLevel; level++) {
-            if (level % 5 === 0) {
-                // Palier de niveau: proposer une competence seulement s'il y en a une a debloquer.
-                const skillQueued = playerController.queuePerkChoices(1, true, level);
-                if (!skillQueued) {
-                    playerController.queuePerkChoices(1, false, level);
-                }
-            } else {
-                playerController.queuePerkChoices(1, false, level);
-            }
-        }
-
-        lastProcessedLevel = currentLevel;
+        const gainedLevels = playerController.player.level - lastProcessedLevel;
+        playerController.queuePerkChoices(gainedLevels);
+        lastProcessedLevel = playerController.player.level;
     }
 
     const playerHitbox = getEntityHitbox(playerController.player);

@@ -21,70 +21,14 @@ function createPlayerController(canvas, ctx, camera) {
 =======
 >>>>>>> beb0f223a7952c8a0f8a546f72cf412ac8db6449
     const attackSprite = new Image();
-    attackSprite.src = "../assets/sprites/Orc3/orc3_attack/orc3_attack_swing.png";
-    let attackFrameSize = 64;
+    attackSprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier(Split Effects)/Soldier-Attack01_Effect.png";
     let attackEffectFrames = 6;
-    let attackHitFrame = 0;
-    const attackVisualScale = 0.58;
-    const swordDamageMultiplier = 2.2;
     attackSprite.addEventListener("load", () => {
-        attackEffectFrames = Math.max(1, Math.floor(attackSprite.width / attackFrameSize));
-        attackHitFrame = 0;
+        attackEffectFrames = Math.max(1, Math.floor(attackSprite.width / 100));
     });
 
     const axeSprite = new Image();
-    let axeSpriteBounds = { x: 0, y: 0, w: 1, h: 1 };
-    axeSprite.src = "../assets/sprites/axe.png";
-    axeSprite.onload = () => {
-        axeSpriteBounds = {
-            x: 0,
-            y: 0,
-            w: axeSprite.naturalWidth,
-            h: axeSprite.naturalHeight
-        };
-
-        // Recadre automatiquement la zone visible du sprite (hors transparence)
-        try {
-            const tempCanvas = document.createElement("canvas");
-            tempCanvas.width = axeSprite.naturalWidth;
-            tempCanvas.height = axeSprite.naturalHeight;
-            const tempCtx = tempCanvas.getContext("2d");
-            if (!tempCtx) return;
-
-            tempCtx.drawImage(axeSprite, 0, 0);
-            const { data, width, height } = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-
-            let minX = width;
-            let minY = height;
-            let maxX = -1;
-            let maxY = -1;
-
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    const alpha = data[(y * width + x) * 4 + 3];
-                    if (alpha <= 8) continue;
-                    if (x < minX) minX = x;
-                    if (y < minY) minY = y;
-                    if (x > maxX) maxX = x;
-                    if (y > maxY) maxY = y;
-                }
-            }
-
-            if (maxX >= minX && maxY >= minY) {
-                axeSpriteBounds = {
-                    x: minX,
-                    y: minY,
-                    w: maxX - minX + 1,
-                    h: maxY - minY + 1
-                };
-            }
-        } catch (e) {
-            console.warn("Axe crop bounds fallback:", e);
-        }
-    };
-    axeSprite.onerror = () => {
-        console.error("Failed to load axe sprite:", axeSprite.src);
-    };
+    axeSprite.src = "../assets/sprites/Arrow(Projectile)/Arrow.png";
 
     const keys = {};
     document.addEventListener("keydown", (e) => { keys[e.key.toLowerCase()] = true; });
@@ -108,8 +52,8 @@ function createPlayerController(canvas, ctx, camera) {
         exp: 0,
         maxExp: 100,
         level: 1,
-        hitW: 31,
-        hitH: 31
+        hitW: 40,
+        hitH: 60
     };
 
     let facingLeft = false;
@@ -128,22 +72,18 @@ function createPlayerController(canvas, ctx, camera) {
         sizeMultiplier: 3,
         range: 220,
         halfAngle: Math.PI / 3,
-        axeCount: 0
+        Axe: false
     };
     const attackStats = { ...BASE_ATTACK_STATS };
 
     const axeState = {
         active: false,
         angle: 0,
-        selfAngle: 0,
-        radius: 82,
+        radius: 95,
         angularSpeed: 0.045,
-        selfAngularSpeed: 0.04,
         damageMultiplier: 2,
         hitCooldown: 220,
-        size: 58,
-        pivotX: 0.72,
-        pivotY: 0.5,
+        size: 56,
         lastHitByEnemy: new Map()
     };
 
@@ -153,6 +93,15 @@ function createPlayerController(canvas, ctx, camera) {
         return angle;
     }
 
+   
+   function AxeSkill(Axe) {
+    
+   }
+   
+   
+   
+   
+   
    
     function syncDerivedAttackVisualStats() {
         const rangeRatio = attackStats.range / BASE_ATTACK_STATS.range;
@@ -173,80 +122,31 @@ function createPlayerController(canvas, ctx, camera) {
         { id: "damage_up", name: "+25% Degats", description: "Vos attaques frappent plus fort.", apply: (s) => { s.damage = Math.round(s.damage * 1.25); } },
         { id: "cooldown_down", name: "-20% Cooldown", description: "Vous attaquez plus souvent.", apply: (s) => { s.cooldown = Math.max(250, Math.round(s.cooldown * 0.8)); } },
         { id: "range_up", name: "+20% Portee", description: "Vous touchez de plus loin.", apply: (s) => { s.range = Math.round(s.range * 1.2); } },
-        { id: "arc_up", name: "+15° Angle", description: "Votre attaque couvre une zone plus large.", apply: (s) => { s.halfAngle = Math.min(Math.PI, s.halfAngle + (Math.PI / 12)); } }
-    ];
+        { id: "arc_up", name: "+15° Angle", description: "Votre attaque couvre une zone plus large.", apply: (s) => { s.halfAngle = Math.min(Math.PI, s.halfAngle + (Math.PI / 12)); } },
+        { id: "Axe", name: "+1 hache", description: "Vous gagnez une hache tourbillonante autour de vous.", apply: (s) => { s.Axe = true} }
+        
 
-    const skillPool = [
-        {
-            id: "Axe",
-            unlockLevel: 5,
-            name: "Hache",
-            unlockDescription: "Debloque une hache autour du joueur.",
-            upgradeName: "Hache +1",
-            upgradeDescription: "Ajoute une hache supplementaire.",
-            maxLevel: 5,
-            isUnlocked: (s) => (s.axeCount || 0) > 0,
-            canUpgrade: (s) => (s.axeCount || 0) < 5,
-            unlock: (s) => { s.axeCount = 1; },
-            upgrade: (s) => { s.axeCount = Math.min(5, (s.axeCount || 0) + 1); }
-        }
     ];
 
     const pendingPerkChoices = [];
 
-    function pickRandomPerks(count, isSkill = false, level = player.level) {
-        let pool;
-
-        if (isSkill) {
-            const unlockableSkills = skillPool
-                .filter((skill) => level >= skill.unlockLevel && !skill.isUnlocked(attackStats))
-                .map((skill) => ({
-                    id: skill.id,
-                    name: skill.name,
-                    description: skill.unlockDescription
-                }));
-            pool = unlockableSkills;
-        } else {
-            pool = perkPool.map((perk) => ({
-                id: perk.id,
-                name: perk.name,
-                description: perk.description
-            }));
-
-            // Une competence deja debloquee a 15% de chance d'apparaitre dans les perks normaux.
-            for (const skill of skillPool) {
-                if (!skill.isUnlocked(attackStats)) continue;
-                if (typeof skill.canUpgrade === "function" && !skill.canUpgrade(attackStats)) continue;
-                if (Math.random() >= 0.15) continue;
-
-                pool.push({
-                    id: skill.id,
-                    name: skill.upgradeName,
-                    description: skill.upgradeDescription
-                });
-            }
-        }
-
-        if (pool.length === 0) return [];
-
-        const shuffled = pool.slice();
+    function pickRandomPerks(count) {
+        const shuffled = perkPool.slice();
         for (let i = shuffled.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
         }
-        return shuffled.slice(0, Math.min(count, shuffled.length));
+        return shuffled.slice(0, Math.min(count, shuffled.length)).map((perk) => ({
+            id: perk.id,
+            name: perk.name,
+            description: perk.description
+        }));
     }
 
-    function queuePerkChoices(levelsGained = 1, isSkill = false, startLevel = player.level) {
-        let queued = 0;
+    function queuePerkChoices(levelsGained = 1) {
         for (let i = 0; i < levelsGained; i++) {
-            const level = startLevel + i;
-            const choices = pickRandomPerks(3, isSkill, level);
-            if (!choices.length) continue;
-            pendingPerkChoices.push(choices);
-            queued++;
+            pendingPerkChoices.push(pickRandomPerks(3));
         }
-        return queued;
     }
 
     function getCurrentPerkChoices() {
@@ -260,32 +160,12 @@ function createPlayerController(canvas, ctx, camera) {
 
     function applyPerkByIndex(idx) {
         if (!hasPendingPerks()) return null;
-        const choices = pendingPerkChoices[0];
+        const choices = pendingPerkChoices.shift();
         const choice = choices[idx];
         if (!choice) return null;
-
         const perk = perkPool.find((p) => p.id === choice.id);
-        if (perk) {
-            perk.apply(attackStats);
-            pendingPerkChoices.shift();
-            syncDerivedAttackVisualStats();
-            return choice.id;
-        }
-
-        const skill = skillPool.find((s) => s.id === choice.id);
-        if (!skill) return null;
-
-        if (skill.isUnlocked(attackStats)) {
-            if (typeof skill.canUpgrade === "function" && !skill.canUpgrade(attackStats)) {
-                pendingPerkChoices.shift();
-                return choice.id;
-            }
-            skill.upgrade(attackStats);
-        } else {
-            skill.unlock(attackStats);
-        }
-
-        pendingPerkChoices.shift();
+        if (!perk) return null;
+        perk.apply(attackStats);
         syncDerivedAttackVisualStats();
         return choice.id;
     }
@@ -366,8 +246,6 @@ function createPlayerController(canvas, ctx, camera) {
 >>>>>>> beb0f223a7952c8a0f8a546f72cf412ac8db6449
 
     function update(enemies = []) {
-        axeState.active = (attackStats.axeCount || 0) > 0;
-
         let moving = false;
         let moveX = 0;
         let moveY = 0;
@@ -416,8 +294,6 @@ function createPlayerController(canvas, ctx, camera) {
         }
 
         const now = performance.now();
-        const swordVisualSize = attackFrameSize * player.scale * attackStats.sizeMultiplier * attackVisualScale;
-        const swordSpawnRange = Math.max(attackStats.range * 1.5, swordVisualSize * 1.7);
         if (now - lastAttackTime >= attackStats.cooldown && enemies.length > 0) {
             let nearest = null;
             let nearestDist = Infinity;
@@ -431,9 +307,9 @@ function createPlayerController(canvas, ctx, camera) {
                     nearest = e;
                 }
             }
-            if (nearest && nearestDist <= swordSpawnRange) {
+            if (nearest) {
                 const angle = Math.atan2(nearest.y - player.y, nearest.x - player.x);
-                attacks.push({ x: player.x, y: player.y, angle, frameX: 0, animCounter: 0, hitApplied: false, target: nearest });
+                attacks.push({ x: player.x, y: player.y, angle, frameX: 0, animCounter: 0, hitApplied: false });
                 lastAttackTime = now;
             }
         }
@@ -446,76 +322,49 @@ function createPlayerController(canvas, ctx, camera) {
                 atk.frameX++;
             }
 
-            // Applique les degats quand l'animation atteint sa frame de contact.
-            if (!atk.hitApplied && atk.frameX >= attackHitFrame) {
-                const alreadyHit = new Set();
-                const swordImpactX = atk.x + Math.cos(atk.angle) * (swordVisualSize * 0.75);
-                const swordImpactY = atk.y + Math.sin(atk.angle) * (swordVisualSize * 0.75);
-                const swordHitRadius = Math.max(52, swordVisualSize * 0.9);
 
-                // Priorite a la cible verrouillee au lancement du swing (fiable sur ennemis rapides).
-                if (atk.target && atk.target.hp > 0) {
-                    const tdx = atk.target.x - swordImpactX;
-                    const tdy = atk.target.y - swordImpactY;
-                    const tdist = Math.sqrt(tdx * tdx + tdy * tdy);
-                    const targetHitRadius = Math.max(atk.target.hitW || 0, atk.target.hitH || 0) * 0.5;
-                    const followThroughRange = Math.max(swordHitRadius, attackStats.range * 1.25);
-                    if (tdist <= followThroughRange + targetHitRadius) {
-                        applyDamageAndKnockback(atk.target, attackStats.damage * swordDamageMultiplier, swordImpactX, swordImpactY, 7);
-                        alreadyHit.add(atk.target);
-                    }
-                }
+        if (axeState.active) {
+            axeState.angle = normalizeAngle(axeState.angle + axeState.angularSpeed);
 
+            const axeX = player.x + Math.cos(axeState.angle) * axeState.radius;
+            const axeY = player.y + Math.sin(axeState.angle) * axeState.radius;
+            const axeHitRadius = 42;
+            const axeDamage = Math.max(1, attackStats.damage * axeState.damageMultiplier);
+
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                if (!enemy || enemy.hp <= 0) continue;
+
+                const dx = enemy.x - axeX;
+                const dy = enemy.y - axeY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > axeHitRadius) continue;
+
+                const enemyId = enemy.id ?? i;
+                const lastHitTime = axeState.lastHitByEnemy.get(enemyId) ?? 0;
+                if (now - lastHitTime < axeState.hitCooldown) continue;
+
+                enemy.hp = Math.max(0, enemy.hp - axeDamage);
+                axeState.lastHitByEnemy.set(enemyId, now);
+            }
+        }
+            if (!atk.hitApplied) {
                 for (const enemy of enemies) {
                     if (!enemy || enemy.hp <= 0) continue;
-                    if (alreadyHit.has(enemy)) continue;
-                    const dx = enemy.x - swordImpactX;
-                    const dy = enemy.y - swordImpactY;
+                    const dx = enemy.x - atk.x;
+                    const dy = enemy.y - atk.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
-                    const enemyHitRadius = Math.max(enemy.hitW || 0, enemy.hitH || 0) * 0.5;
-                    if (distance > swordHitRadius + enemyHitRadius) continue;
-                    applyDamageAndKnockback(enemy, attackStats.damage * swordDamageMultiplier, swordImpactX, swordImpactY, 6);
+                    if (distance > attackStats.range) continue;
+                    const enemyAngle = Math.atan2(dy, dx);
+                    const delta = Math.abs(normalizeAngle(enemyAngle - atk.angle));
+                    if (delta > attackStats.halfAngle) continue;
+                    enemy.hp = Math.max(0, enemy.hp - attackStats.damage);
                 }
                 atk.hitApplied = true;
             }
 
             if (atk.frameX >= attackEffectFrames) {
                 attacks.splice(i, 1);
-            }
-        }
-
-        // Gestion de la hache (en dehors de la boucle des attaques)
-        if (axeState.active) {
-            axeState.angle = normalizeAngle(axeState.angle + axeState.angularSpeed);
-            axeState.selfAngle = normalizeAngle(axeState.selfAngle + axeState.selfAngularSpeed);
-            const axeCount = Math.max(1, Math.min(5, Math.floor(attackStats.axeCount || 0)));
-            const spacing = (Math.PI * 2) / axeCount;
-            const axeHitRadius = Math.max(18, axeState.size * 0.45);
-            const axeDamage = Math.max(1, attackStats.damage * axeState.damageMultiplier);
-
-            for (let axeIndex = 0; axeIndex < axeCount; axeIndex++) {
-                const angle = axeState.angle + spacing * axeIndex;
-                const axeX = player.x + Math.cos(angle) * axeState.radius;
-                const axeY = player.y + Math.sin(angle) * axeState.radius;
-
-                for (let i = enemies.length - 1; i >= 0; i--) {
-                    const enemy = enemies[i];
-                    if (!enemy || enemy.hp <= 0) continue;
-
-                    const dx = enemy.x - axeX;
-                    const dy = enemy.y - axeY;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    const enemyHitRadius = Math.max(enemy.hitW || 0, enemy.hitH || 0) * 0.5;
-                    if (dist > axeHitRadius + enemyHitRadius) continue;
-
-                    const enemyId = enemy.id ?? i;
-                    const hitKey = `${enemyId}:${axeIndex}`;
-                    const lastHitTime = axeState.lastHitByEnemy.get(hitKey) ?? 0;
-                    if (now - lastHitTime < axeState.hitCooldown) continue;
-
-                    applyDamageAndKnockback(enemy, axeDamage, axeX, axeY, 4);
-                    axeState.lastHitByEnemy.set(hitKey, now);
-                }
             }
         }
     }
@@ -562,8 +411,8 @@ function createPlayerController(canvas, ctx, camera) {
     }
 
     function drawAttacks() {
-        const frameSize = attackFrameSize;
-        const size = frameSize * player.scale * attackStats.sizeMultiplier * attackVisualScale * camera.zoom;
+        const frameSize = 100;
+        const size = frameSize * player.scale * attackStats.sizeMultiplier * camera.zoom;
         for (const atk of attacks) {
             const screenX = (atk.x - camera.x) * camera.zoom;
             const screenY = (atk.y - camera.y) * camera.zoom;
@@ -579,47 +428,22 @@ function createPlayerController(canvas, ctx, camera) {
         }
 
         if (axeState.active) {
+            const axeX = (player.x + Math.cos(axeState.angle) * axeState.radius - camera.x) * camera.zoom;
+            const axeY = (player.y + Math.sin(axeState.angle) * axeState.radius - camera.y) * camera.zoom;
             const axeSize = axeState.size * camera.zoom;
-            const axeCount = Math.max(1, Math.min(5, Math.floor(attackStats.axeCount || 0)));
-            const spacing = (Math.PI * 2) / axeCount;
 
-            for (let axeIndex = 0; axeIndex < axeCount; axeIndex++) {
-                const angle = axeState.angle + spacing * axeIndex;
-                const axeX = (player.x + Math.cos(angle) * axeState.radius - camera.x) * camera.zoom;
-                const axeY = (player.y + Math.sin(angle) * axeState.radius - camera.y) * camera.zoom;
-
-                ctx.save();
-                ctx.translate(axeX, axeY);
-                // Rotation orbitale + rotation sur elle-meme
-                ctx.rotate(angle + axeState.selfAngle);
-                if (axeSprite.complete && axeSprite.naturalWidth > 0) {
-                    const srcW = axeSpriteBounds.w;
-                    const srcH = axeSpriteBounds.h;
-                    const scale = axeSize / Math.max(srcW, srcH);
-                    const drawW = srcW * scale;
-                    const drawH = srcH * scale;
-                    const pivotDrawX = drawW * axeState.pivotX;
-                    const pivotDrawY = drawH * axeState.pivotY;
-
-                    ctx.drawImage(
-                        axeSprite,
-                        axeSpriteBounds.x,
-                        axeSpriteBounds.y,
-                        srcW,
-                        srcH,
-                        -pivotDrawX,
-                        -pivotDrawY,
-                        drawW,
-                        drawH
-                    );
-                } else {
-                    ctx.fillStyle = "#d8d8d8";
-                    ctx.beginPath();
-                    ctx.arc(0, 0, axeSize * 0.35, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                ctx.restore();
+            ctx.save();
+            ctx.translate(axeX, axeY);
+            ctx.rotate(axeState.angle + Math.PI / 2);
+            if (axeSprite.complete && axeSprite.naturalWidth > 0) {
+                ctx.drawImage(axeSprite, -axeSize / 2, -axeSize / 2, axeSize, axeSize);
+            } else {
+                ctx.fillStyle = "#d8d8d8";
+                ctx.beginPath();
+                ctx.arc(0, 0, axeSize * 0.35, 0, Math.PI * 2);
+                ctx.fill();
             }
+            ctx.restore();
         }
     }
 
