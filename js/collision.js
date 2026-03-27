@@ -70,7 +70,7 @@ function blockInternalHoles(mask, width, height) {
         }
     }
 }
-
+//serre a crée les rectangles de collision 
 function pixelsToRects(mask, width, height) {
     const visited = new Uint8ClampedArray(mask.length);
     const rects = [];
@@ -103,7 +103,7 @@ function pixelsToRects(mask, width, height) {
                     visited[idxAt(xx, yy, width)] = 1;
                 }
             }
-
+            //ajouter ractangle a la liste 
             rects.push({ x: startX, y: y, w: endX - startX + 1, h: endY - y + 1 });
         }
     }
@@ -186,13 +186,15 @@ function analyzeMapImage() {
                 return !overlap;
             });
 
+
+        // bordure autour de MAP !!!! 
         filteredRects.unshift(
             { x: 0, y: 0, w: width, h: 16 },
             { x: 0, y: height - 16, w: width, h: 16 },
             { x: 0, y: 0, w: 16, h: height },
             { x: width - 16, y: 0, w: 16, h: height }
         );
-
+        // stocks les obstzcles 
         window.obstacles = filteredRects;
 
         if (!window.obstacles.length) {
