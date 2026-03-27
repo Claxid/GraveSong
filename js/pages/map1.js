@@ -1,6 +1,6 @@
 function createMapRenderer(canvas, ctx) {
     const map = new Image();
-    map.src = "../assets/images/Ville.png";
+    map.src = "../assets/images/Map1.png";
 
     const MAP_WIDTH = 3200;
     const MAP_HEIGHT = 3200;

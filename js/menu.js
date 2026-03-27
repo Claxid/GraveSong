@@ -1,20 +1,8 @@
-// Page de chargement
-// Elle attend 5 secondes pour simuler un chargement, puis va au menu.
-
 const AUDIO_TIME_KEY = 'gravesong_audio_time';
-
-// Afficher la page de chargement pendant 5 secondes
-window.addEventListener('load', function() {
-    // Attendre 5 secondes avant de rediriger
-    setTimeout(function() {
-        // Rediriger vers la page principale (index.html)
-        window.location.href = 'menu.html';
-    }, 3000);
-});
-
 
 const audio = document.getElementById('menuAudio');
 const playButton = document.getElementById('playButton');
+const loreButton = document.getElementById('loreButton');
 
 let saveAudioTime = () => {};
 
@@ -40,4 +28,18 @@ if (audio) {
 	audio.addEventListener('timeupdate', saveAudioTime);
 	window.addEventListener('beforeunload', saveAudioTime);
 	window.addEventListener('pagehide', saveAudioTime);
+}
+
+if (playButton) {
+	playButton.addEventListener('click', () => {
+		saveAudioTime();
+		window.location.href = 'ville.html';
+	});
+}
+
+if (loreButton) {
+	loreButton.addEventListener('click', () => {
+		saveAudioTime();
+		window.location.href = 'lore.html';
+	});
 }

@@ -1,3 +1,6 @@
+/* Styles de la page d'accueil */
+/* Image plein écran, alertes avec animations shimmer et fade. */
+
 * {
     margin: 0;
     padding: 0;
@@ -20,6 +23,7 @@ img {
     display: block;
 }
 
+/* Alerte F11 en haut à droite. */
 #alerteF11 {
     position: fixed;
     top: 20px;
@@ -40,6 +44,7 @@ img {
 
 
 
+/* Alerte "Appuyer partout" en bas centre. */
 #AppuyerPartout {
     position: fixed;
     left: 50%;
@@ -66,6 +71,7 @@ img {
 
 
 
+/* Keyframes pour les effets lumineux. */
 @keyframes shimmer {
     0%   { opacity: 0.88; text-shadow: 0 0 1px rgba(255,255,255,0.18); }
     50%  { opacity: 1;    text-shadow: 0 0 4px rgba(255,255,255,0.35); }
@@ -76,6 +82,7 @@ img {
     to { opacity: 0; }
 }
 
+/* Canvas du jeu. */
 #game {
     display: block;
 }

@@ -1,21 +1,65 @@
-function createEnemyController(canvas, ctx, camera, startX = 800, startY = 800) {
-    const sprite = new Image();
-    sprite.src = "../assets/sprites/Characters(100x100)/Orc/Orc with shadows/Orc-Walk.png";
+// Contrôleur des ennemis
+// Les ennemis suivent le joueur et ont une animation de marche.
 
-    const enemy = {
-        x: startX,
-        y: startY,
-        speed: 1,
-        frameX: 0,
-        frameY: 0,
+const ENEMY_TYPE_CONFIGS = {
+    orc: {
+        spriteSrc: "../assets/sprites/Characters(100x100)/Orc/Orc with shadows/Orc-Walk.png",
         frameSize: 100,
         maxFrames: 6,
+        speed: 1.75,
+        animSpeed: 10,
+        scale: 1.9,
+        hp: 20,
+        maxhp: 20,
+        hitW: 34,
+        hitH: 48
+    },
+    orc3: {
+        spriteSrc: "../assets/sprites/Orc3/orc3_walk/orc3_walk_full.png",
+        frameSize: 64,
+        maxFrames: 6,
+        speed: 1.45,
+        animSpeed: 11,
+        scale: 2.05,
+        hp: 120,
+        maxhp: 120,
+        hitW: 30,
+        hitH: 42
+    }
+};
+
+function createEnemyController(canvas, ctx, camera, startX = 800, startY = 800, enemyType = "orc") {
+    const enemyConfig = ENEMY_TYPE_CONFIGS[enemyType] || ENEMY_TYPE_CONFIGS.orc;
+
+    // Je charge le sprite du type d'ennemi choisi.
+    const sprite = new Image();
+    sprite.src = enemyConfig.spriteSrc;
+
+    // Propriétés de l'ennemi : position, vitesse, animation, etc.
+    const enemy = {
+        type: enemyType,
+        spawnX: startX,
+        spawnY: startY,
+        x: startX,
+        y: startY,
+        speed: enemyConfig.speed,
+        frameX: 0,
+        frameY: 0,
+        frameSize: enemyConfig.frameSize,
+        maxFrames: enemyConfig.maxFrames,
         animCounter: 0,
-        animSpeed: 12,
-        scale: 2
+        animSpeed: enemyConfig.animSpeed,
+        scale: enemyConfig.scale,
+        hp : enemyConfig.hp,
+        maxhp : enemyConfig.maxhp,
+        hitW: enemyConfig.hitW,
+        hitH: enemyConfig.hitH
     };
 
+    // Update : fait bouger l'ennemi vers le joueur.
     function update(player) {
+        if (enemy.hp <= 0) return;
+
         const dx = player.x - enemy.x;
         const dy = player.y - enemy.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -25,6 +69,7 @@ function createEnemyController(canvas, ctx, camera, startX = 800, startY = 800) 
         enemy.x += (dx / distance) * enemy.speed;
         enemy.y += (dy / distance) * enemy.speed;
 
+        // Animation : change de frame toutes les animSpeed updates.
         enemy.animCounter++;
         if (enemy.animCounter >= enemy.animSpeed) {
             enemy.animCounter = 0;
@@ -32,6 +77,7 @@ function createEnemyController(canvas, ctx, camera, startX = 800, startY = 800) 
         }
     }
 
+    // Draw : dessine l'ennemi à l'écran avec la caméra.
     function draw() {
         const size = enemy.frameSize * enemy.scale * camera.zoom;
         const drawX = (enemy.x - camera.x) * camera.zoom - size / 2;

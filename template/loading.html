@@ -1,20 +1,31 @@
 <!DOCTYPE html>
 <html>
 
+<!-- Page de chargement -->
+<!-- Elle affiche une image et un spinner pendant 5 secondes avant d'aller au menu. -->
+
 <head>
+    <!-- CSS pour le style de loading. -->
     <link rel="stylesheet" href="../css/loading.css">
+    <!-- Police gothique. -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
 
+<!-- Image de chargement. -->
 <img src="../assets/images/image_chargement.png" />
 
+<!-- Musique de fond -->
+<audio id="menuAudio" autoplay loop src="../assets/audio/Cathedral_of_Unfinished_Prayers.mp3"></audio>
+
+<!-- Loader avec spinner et texte. -->
 <div id="loader">
     <div id="spinner"></div>
     <h1>Chargement...</h1>
 </div>
 
+<!-- Script qui gère la redirection après 5s. -->
 <script src="../js/pages/loading.js"></script>
 
 </body>

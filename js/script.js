@@ -1,7 +1,11 @@
+// Gestion de l'audio et navigation
+// Ici, je sauvegarde le temps de la musique pour qu'elle reprenne où elle s'est arrêtée.
+
 // Cle de sauvegarde du temps.
 const AUDIO_TIME_KEY = 'gravesong_audio_time';
 
 // True si on est deja sur loading.
+// Je vérifie si on est sur la page loading pour pas rediriger en boucle.
 const isLoadingPage = window.location.pathname.replace(/\\/g, '/').endsWith('/template/loading.html');
 
 const audio = document.getElementById('myAudio');
@@ -10,15 +14,15 @@ const audio = document.getElementById('myAudio');
 let saveAudioTime = () => {};
 
 if (audio) {
-  // Volume de base.
+  // Volume de base, pas trop fort.
   audio.volume = 0.4;
 
-  // Active le son au premier clic.
+  // Active le son au premier clic, parce que les navigateurs bloquent autoplay.
   document.addEventListener('click', () => {
     audio.muted = false;
   }, { once: true });
 
-  // Reprend la musique au dernier temps.
+  // Reprend la musique au dernier temps sauvegardé.
   audio.addEventListener('loadedmetadata', () => {
     const savedTime = parseFloat(sessionStorage.getItem(AUDIO_TIME_KEY));
     if (!Number.isNaN(savedTime) && savedTime >= 0) {
@@ -27,7 +31,7 @@ if (audio) {
     }
   });
 
-  // Sauvegarde du temps actuel.
+  // Sauvegarde du temps actuel dans sessionStorage.
   saveAudioTime = () => {
     sessionStorage.setItem(AUDIO_TIME_KEY, String(audio.currentTime || 0));
   };
@@ -38,7 +42,7 @@ if (audio) {
 }
 
 function pageSuivante() {
-  // Sauvegarde puis redirection.
+  // Sauvegarde puis redirection vers loading.
   saveAudioTime();
   window.location.href = 'template/loading.html';
 }
