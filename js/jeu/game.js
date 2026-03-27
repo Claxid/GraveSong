@@ -363,15 +363,11 @@ function loop() {
     // CAMERA
     cameraController.centerOn(playerController.player.x, playerController.player.y);
 
-<<<<<<< HEAD
     // Nettoyer le canvas
     ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // FOND = MAP
-=======
-    // MAP
->>>>>>> beb0f223a7952c8a0f8a546f72cf412ac8db6449
     mapRenderer.draw(cameraController.camera);
      // PNJ
         for (const pnj of pnjControllers) {
@@ -389,14 +385,11 @@ function loop() {
         enemyController.draw();
     }
 
-<<<<<<< HEAD
     if (window.drawCollidersOverlay) {
         window.drawCollidersOverlay(ctx, cameraController.camera, cameraController.camera.zoom);
     }
 
-=======
     // HITBOX DEBUG
->>>>>>> beb0f223a7952c8a0f8a546f72cf412ac8db6449
     if (SHOW_HITBOXES) {
         ctx.save();
         ctx.lineWidth = 2;

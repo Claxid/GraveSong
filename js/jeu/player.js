@@ -5,7 +5,6 @@ function createPlayerController(canvas, ctx, camera) {
     const sprite = new Image();
     sprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier/Soldier-Walk.png";
 
-<<<<<<< HEAD
     const hurtSprite = new Image();
     hurtSprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier/Soldier-Hurt.png";
     const HURT_DURATION_MS = 140;
@@ -16,10 +15,6 @@ function createPlayerController(canvas, ctx, camera) {
         hurtFrames = Math.max(1, Math.floor(hurtSprite.width / 100));
     });
 
-
-
-=======
->>>>>>> beb0f223a7952c8a0f8a546f72cf412ac8db6449
     const attackSprite = new Image();
     attackSprite.src = "../assets/sprites/Orc3/orc3_attack/orc3_attack_swing.png";
     let attackFrameSize = 64;
@@ -302,7 +297,6 @@ function createPlayerController(canvas, ctx, camera) {
         return false;
     }
 
-<<<<<<< HEAD
     function applyDamageAndKnockback(enemy, damage, sourceX, sourceY, knockbackStrength = 8) {
         const safeEnemyHp = Number.isFinite(enemy.hp) ? enemy.hp : (Number.isFinite(enemy.maxhp) ? enemy.maxhp : 0);
         const safeDamage = Math.max(1, Math.round(Number.isFinite(damage) ? damage : attackStats.damage));
@@ -317,53 +311,6 @@ function createPlayerController(canvas, ctx, camera) {
         enemy.x += pushX;
         enemy.y += pushY;
     }
-=======
-    const keys = {};
-    document.addEventListener("keydown", (e) => {
-        keys[e.key] = true;
-    });
-    document.addEventListener("keyup", (e) => {
-        keys[e.key] = false;
-    });
-
-    // Clic sur canvas pour debug (affiche les coordonnées écran).
-    canvas.addEventListener("click", (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        console.log(x, y);
-    });
-
-    // Propriétés du joueur : position, vitesse, animation.
-    const player = {
-        spawnX: 1774,
-        spawnY: 2200,
-        x: 1774,
-        y: 2200,
-        speed: 6,
-        frameX: 0,
-        frameY: 0,
-        frameSize: 100,
-        maxFrames: 8,
-        animCounter: 0,
-        animSpeed: 10,
-        scale: 2,
-        hp : 100,
-        maxHp : 100,
-        exp : 0,
-        maxExp : 100,
-        level : 1,
-        hitW: 40,
-        hitH: 60
-    };
-
-    let facingLeft = false;
-
-    sprite.addEventListener("load", () => {
-        // Adapt to the actual number of frames in the loaded walk sprite sheet.
-        player.maxFrames = Math.max(1, Math.floor(sprite.width / player.frameSize));
-    });
->>>>>>> beb0f223a7952c8a0f8a546f72cf412ac8db6449
 
     function update(enemies = []) {
         axeState.active = (attackStats.axeCount || 0) > 0;
