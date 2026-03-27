@@ -253,8 +253,9 @@ window.addEventListener("resize", () => {
 function loop() {
     const canUpdateWorld = !playerController.hasPendingPerks();
 
+    // ── UPDATES ──────────────────────────────────────────
     if (canUpdateWorld) {
-        const enemies = isMap1 ? enemyControllers.map((controller) => controller.enemy) : [];
+        const enemies = isMap1 ? enemyControllers.map((c) => c.enemy) : [];
         playerController.update(enemies);
     }
 
@@ -267,36 +268,23 @@ function loop() {
         if (enemyControllers.length < maxEnemies && now - lastSpawnAt >= spawnInterval) {
             const availableSlots = maxEnemies - enemyControllers.length;
             const spawnCount = Math.min(spawnBatchSize, availableSlots);
-            for (let i = 0; i < spawnCount; i++) {
-                spawnEnemyNearPlayer();
-            }
+            for (let i = 0; i < spawnCount; i++) spawnEnemyNearPlayer();
             lastSpawnAt = now;
         }
 
-        for (const enemyController of enemyControllers) {
-            enemyController.update(playerController.player);
-        }
+        for (const ec of enemyControllers) ec.update(playerController.player);
 
-        // PNJ statiques
-        for (const pnj of pnjControllers) {
-            pnj.update();
-        }
-
-        // JOUEUR
-        playerController.draw();
-
-        // PNJ
-        for (const pnj of pnjControllers) {
-            pnj.draw();
-        }
-
-        // Suppression ennemis morts
         for (let i = enemyControllers.length - 1; i >= 0; i--) {
             if (enemyControllers[i].enemy.hp > 0) continue;
             enemyControllers.splice(i, 1);
             killCount += 1;
             givePlayerExp(ENEMY_KILL_EXP);
         }
+    }
+
+    // UPDATE des PNJ (pas de draw ici !)
+    if (canUpdateWorld) {
+        for (const pnj of pnjControllers) pnj.update();
     }
 
     if (playerController.player.level > lastProcessedLevel) {
@@ -307,7 +295,6 @@ function loop() {
 
     const playerHitbox = getEntityHitbox(playerController.player);
 
-    // PORTAIL ville -> map1
     if (isVilleMap && !isChangingMap && isRectOverlap(playerHitbox, map1PortalZone)) {
         isChangingMap = true;
         window.location.href = "map1.html";
@@ -316,14 +303,9 @@ function loop() {
 
     if (canUpdateWorld) {
         let touchingEnemy = false;
-        for (const enemyController of enemyControllers) {
-            const enemyHitbox = getEntityHitbox(enemyController.enemy);
-            if (isRectOverlap(playerHitbox, enemyHitbox)) {
-                touchingEnemy = true;
-                break;
-            }
+        for (const ec of enemyControllers) {
+            if (isRectOverlap(playerHitbox, getEntityHitbox(ec.enemy))) { touchingEnemy = true; break; }
         }
-
         if (touchingEnemy) {
             const now = performance.now();
             if (now - lastContactDamageAt >= DAMAGE_COOLDOWN_MS) {
@@ -339,7 +321,6 @@ function loop() {
             window.location.href = "ville.html";
             return;
         }
-
         playerController.player.x = playerController.player.spawnX;
         playerController.player.y = playerController.player.spawnY;
         playerController.player.hp = playerController.player.maxHp;

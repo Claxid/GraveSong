@@ -1,6 +1,6 @@
 function createpnjController(canvas, ctx, camera, startX = 800, startY = 800) {
     const sprite = new Image();
-    sprite.src = "../assets/sprites/Characters(100x100)/Orc/Orc with shadows/Orc-Walk.png";
+    sprite.src = "../assets/sprites/villager/villager.png";
 
     const pnj = {
         spawnX: startX,
@@ -10,8 +10,8 @@ function createpnjController(canvas, ctx, camera, startX = 800, startY = 800) {
         speed: 1.52,
         frameX: 0,
         frameY: 0,
-        frameSize: 100,
-        maxFrames: 6,
+        frameSize: 50,
+        maxFrames: 2,
         animCounter: 0,
         animSpeed: 12,
         scale: 2,
