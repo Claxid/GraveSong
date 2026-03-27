@@ -4,6 +4,12 @@
 function createMapRenderer(canvas, ctx) {
     // Image de la map.
     const map = new Image();
+    map.onload = () => {
+        console.log("Map image loaded successfully:", map.src);
+    };
+    map.onerror = () => {
+        console.error("Failed to load map image:", map.src);
+    };
     map.src = "../assets/images/Ville.png";
 
     // Dimensions de la map en pixels.
@@ -16,17 +22,20 @@ function createMapRenderer(canvas, ctx) {
         const viewWidth = canvas.width / zoom;
         const viewHeight = canvas.height / zoom;
 
-        ctx.drawImage(
-            map,
-            camera.x,
-            camera.y,
-            viewWidth,
-            viewHeight,
-            0,
-            0,
-            canvas.width,
-            canvas.height
-        );
+        // Afficher la map seulement si l'image a chargé
+        if (map.complete && map.naturalWidth > 0) {
+            ctx.drawImage(
+                map,
+                camera.x,
+                camera.y,
+                viewWidth,
+                viewHeight,
+                0,
+                0,
+                canvas.width,
+                canvas.height
+            );
+        }
     }
 
     return {
