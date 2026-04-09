@@ -166,6 +166,12 @@ function createPlayerController(canvas, ctx, camera) {
         );
     }
 
+    function getSwordVisualScale() {
+        const rangeRatio = attackStats.range / BASE_ATTACK_STATS.range;
+        const rangeVisualBonus = 1 + (rangeRatio - 1) * 1.6;
+        return attackVisualScale * Math.max(1, rangeVisualBonus);
+    }
+
     const perkPool = [
         { id: "damage_up", name: "+25% Degats", description: "Vos attaques frappent plus fort.", apply: (s) => { s.damage = Math.round(s.damage * 1.25); } },
         { id: "cooldown_down", name: "-20% Cooldown", description: "Vous attaquez plus souvent.", apply: (s) => { s.cooldown = Math.max(250, Math.round(s.cooldown * 0.8)); } },
@@ -365,7 +371,7 @@ function createPlayerController(canvas, ctx, camera) {
         }
 
         const now = performance.now();
-        const swordVisualSize = attackFrameSize * player.scale * attackStats.sizeMultiplier * attackVisualScale;
+        const swordVisualSize = attackFrameSize * player.scale * attackStats.sizeMultiplier * getSwordVisualScale();
         const swordSpawnRange = Math.max(attackStats.range * 1.5, swordVisualSize * 1.7);
         if (now - lastAttackTime >= attackStats.cooldown && enemies.length > 0) {
             let nearest = null;
@@ -512,7 +518,7 @@ function createPlayerController(canvas, ctx, camera) {
 
     function drawAttacks() {
         const frameSize = attackFrameSize;
-        const size = frameSize * player.scale * attackStats.sizeMultiplier * attackVisualScale * camera.zoom;
+        const size = frameSize * player.scale * attackStats.sizeMultiplier * getSwordVisualScale() * camera.zoom;
         for (const atk of attacks) {
             const screenX = (atk.x - camera.x) * camera.zoom;
             const screenY = (atk.y - camera.y) * camera.zoom;
