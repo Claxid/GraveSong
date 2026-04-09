@@ -9,6 +9,10 @@ function idxAt(x, y, width) {
     return y * width + x;
 }
 
+function isInBounds(x, y, width, height) {
+    return x >= 0 && y >= 0 && x < width && y < height;
+}
+
 function dilateMask(mask, width, height, radius) {
     const out = new Uint8ClampedArray(mask.length);
     for (let y = 0; y < height; y++) {
@@ -18,7 +22,7 @@ function dilateMask(mask, width, height, radius) {
                 for (let dx = -radius; dx <= radius; dx++) {
                     const nx = x + dx;
                     const ny = y + dy;
-                    if (nx >= 0 && ny >= 0 && nx < width && ny < height) {
+                    if (isInBounds(nx, ny, width, height)) {
                         out[idxAt(nx, ny, width)] = 1;
                     }
                 }
@@ -41,6 +45,14 @@ function floodFillExterior(mask, width, height) {
         queueY.push(y);
     };
 
+    const pushNeighbors = (x, y) => {
+        if (x > 0) pushIfFree(x - 1, y);
+        if (x + 1 < width) pushIfFree(x + 1, y);
+        if (y > 0) pushIfFree(x, y - 1);
+        if (y + 1 < height) pushIfFree(x, y + 1);
+    };
+
+    // Init from borders
     for (let x = 0; x < width; x++) {
         pushIfFree(x, 0);
         pushIfFree(x, height - 1);
@@ -50,16 +62,42 @@ function floodFillExterior(mask, width, height) {
         pushIfFree(width - 1, y);
     }
 
+    // Flood fill
     while (queueX.length) {
         const x = queueX.pop();
         const y = queueY.pop();
-        if (x > 0) pushIfFree(x - 1, y);
-        if (x + 1 < width) pushIfFree(x + 1, y);
-        if (y > 0) pushIfFree(x, y - 1);
-        if (y + 1 < height) pushIfFree(x, y + 1);
+        pushNeighbors(x, y);
     }
 
     return visited;
+}
+
+function rgbToHsv(r, g, b) {
+    const maxRGB = Math.max(r, g, b);
+    const minRGB = Math.min(r, g, b);
+    const delta = maxRGB - minRGB;
+    const value = maxRGB;
+    const sat = maxRGB === 0 ? 0 : delta / maxRGB;
+    
+    let hue = 0;
+    if (delta !== 0) {
+        if (maxRGB === r) hue = 60 * (((g - b) / delta) % 6);
+        else if (maxRGB === g) hue = 60 * (((b - r) / delta) + 2);
+        else hue = 60 * (((r - g) / delta) + 4);
+    }
+    if (hue < 0) hue += 360;
+    
+    return { hue, sat, value };
+}
+
+function isRoofColor(hue, sat, value) {
+    const isGroundHue = hue >= 25 && hue <= 75;
+    const isRoofBlue = sat > 0.25 && value > 50 && hue >= 190 && hue <= 250;
+    const isRoofRed = sat > 0.25 && value > 60 && (hue <= 20 || hue >= 330);
+    const isRoofBrown = sat > 0.18 && value > 50 && hue >= 20 && hue <= 45;
+    const isRoofGrey = sat < 0.15 && value >= 70 && value <= 185 && !isGroundHue;
+    
+    return (isRoofBlue || isRoofRed || isRoofBrown || isRoofGrey) && !isGroundHue;
 }
 
 function blockInternalHoles(mask, width, height) {
@@ -67,6 +105,36 @@ function blockInternalHoles(mask, width, height) {
     for (let i = 0; i < mask.length; i++) {
         if (!mask[i] && !exterior[i]) {
             mask[i] = 1;
+        }
+    }
+}
+
+function findHorizontalRun(mask, visited, width, height, y, startX) {
+    let x = startX;
+    while (x < width && mask[idxAt(x, y, width)] && !visited[idxAt(x, y, width)]) x++;
+    return x - 1;
+}
+
+function extendVertical(mask, visited, width, height, startX, endX, y) {
+    let endY = y;
+    let canExtend = true;
+    while (canExtend && endY + 1 < height) {
+        for (let xx = startX; xx <= endX; xx++) {
+            const nextIdx = idxAt(xx, endY + 1, width);
+            if (!mask[nextIdx] || visited[nextIdx]) {
+                canExtend = false;
+                break;
+            }
+        }
+        if (canExtend) endY++;
+    }
+    return endY;
+}
+
+function markRect(visited, width, startX, endX, y, endY) {
+    for (let yy = y; yy <= endY; yy++) {
+        for (let xx = startX; xx <= endX; xx++) {
+            visited[idxAt(xx, yy, width)] = 1;
         }
     }
 }
@@ -82,33 +150,30 @@ function pixelsToRects(mask, width, height) {
             if (x >= width) break;
 
             const startX = x;
-            while (x < width && mask[idxAt(x, y, width)] && !visited[idxAt(x, y, width)]) x++;
-            const endX = x - 1;
+            const endX = findHorizontalRun(mask, visited, width, height, y, startX);
+            const endY = extendVertical(mask, visited, width, height, startX, endX, y);
+            markRect(visited, width, startX, endX, y, endY);
 
-            let endY = y;
-            let canExtend = true;
-            while (canExtend && endY + 1 < height) {
-                for (let xx = startX; xx <= endX; xx++) {
-                    const nextIdx = idxAt(xx, endY + 1, width);
-                    if (!mask[nextIdx] || visited[nextIdx]) {
-                        canExtend = false;
-                        break;
-                    }
-                }
-                if (canExtend) endY++;
-            }
-
-            for (let yy = y; yy <= endY; yy++) {
-                for (let xx = startX; xx <= endX; xx++) {
-                    visited[idxAt(xx, yy, width)] = 1;
-                }
-            }
-
-            rects.push({ x: startX, y: y, w: endX - startX + 1, h: endY - y + 1 });
+            rects.push({ x: startX, y, w: endX - startX + 1, h: endY - y + 1 });
+            x = endX + 1;
         }
     }
 
     return rects;
+}
+
+function createMapBorders(w, h, thickness) {
+    return [
+        { x: 0, y: 0, w, h: thickness },
+        { x: 0, y: h - thickness, w, h: thickness },
+        { x: 0, y: 0, w: thickness, h },
+        { x: w - thickness, y: 0, w: thickness, h }
+    ];
+}
+
+function checkRectOverlap(rect, clear) {
+    return rect.x < clear.x + clear.w && rect.x + rect.w > clear.x &&
+           rect.y < clear.y + clear.h && rect.y + rect.h > clear.y;
 }
 
 function analyzeMapImage() {
@@ -143,29 +208,9 @@ function analyzeMapImage() {
             const r = data[i];
             const g = data[i + 1];
             const b = data[i + 2];
+            const { hue, sat, value } = rgbToHsv(r, g, b);
 
-            const maxRGB = Math.max(r, g, b);
-            const minRGB = Math.min(r, g, b);
-            const delta = maxRGB - minRGB;
-            const value = maxRGB;
-            const sat = maxRGB === 0 ? 0 : delta / maxRGB;
-            let hue = 0;
-            if (delta !== 0) {
-                if (maxRGB === r) hue = 60 * (((g - b) / delta) % 6);
-                else if (maxRGB === g) hue = 60 * (((b - r) / delta) + 2);
-                else hue = 60 * (((r - g) / delta) + 4);
-            }
-            if (hue < 0) hue += 360;
-
-            const isGroundHue = hue >= 25 && hue <= 75;
-            const isRoofBlue = sat > 0.25 && value > 50 && hue >= 190 && hue <= 250;
-            const isRoofRed = sat > 0.25 && value > 60 && (hue <= 20 || hue >= 330);
-            const isRoofBrown = sat > 0.18 && value > 50 && hue >= 20 && hue <= 45;
-            const isRoofGrey = sat < 0.15 && value >= 70 && value <= 185 && !isGroundHue;
-
-            const isRoof = (isRoofBlue || isRoofRed || isRoofBrown || isRoofGrey) && !isGroundHue;
-
-            if (isRoof) {
+            if (isRoofColor(hue, sat, value)) {
                 mask[i / 4] = 1;
             }
         }
@@ -177,21 +222,21 @@ function analyzeMapImage() {
 
         const rects = pixelsToRects(dilated, width, height);
 
+        // Bridge and border configuration
         const bridgeClear = { x: 2250, y: 700, w: 100, h: 950 };
+        const bridgeSideBlocks = [
+            { x: 2238, y: 830, w: 34, h: 300 },
+            { x: 2310, y: 830, w: 40, h: 300 }
+        ];
+
+        const mapBorderBlocks = createMapBorders(width, height, 24);
+
         const filteredRects = rects
             .filter((r) => r.w >= 1 && r.h >= 1)
-            .filter((o) => {
-                const overlap = o.x < bridgeClear.x + bridgeClear.w && o.x + o.w > bridgeClear.x &&
-                                 o.y < bridgeClear.y + bridgeClear.h && o.y + o.h > bridgeClear.y;
-                return !overlap;
-            });
+            .filter((o) => !checkRectOverlap(o, bridgeClear));
 
-        filteredRects.unshift(
-            { x: 0, y: 0, w: width, h: 16 },
-            { x: 0, y: height - 16, w: width, h: 16 },
-            { x: 0, y: 0, w: 16, h: height },
-            { x: width - 16, y: 0, w: 16, h: height }
-        );
+        filteredRects.push(...bridgeSideBlocks);
+        filteredRects.unshift(...mapBorderBlocks);
 
         window.obstacles = filteredRects;
 
