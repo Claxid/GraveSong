@@ -5,21 +5,6 @@ function createPlayerController(canvas, ctx, camera) {
     const sprite = new Image();
     sprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier/Soldier-Walk.png";
 
-<<<<<<< HEAD
-    const hurtSprite = new Image();
-    hurtSprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier/Soldier-Hurt.png";
-    const HURT_DURATION_MS = 140;
-    let hurtUntil = 0;
-    let hurtFrames = 1;
-
-    hurtSprite.addEventListener("load", () => {
-        hurtFrames = Math.max(1, Math.floor(hurtSprite.width / 100));
-    });
-
-
-
-=======
->>>>>>> beb0f223a7952c8a0f8a546f72cf412ac8db6449
     const attackSprite = new Image();
     attackSprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier(Split Effects)/Soldier-Attack01_Effect.png";
     let attackEffectFrames = 6;
@@ -188,22 +173,6 @@ function createPlayerController(canvas, ctx, camera) {
         return false;
     }
 
-<<<<<<< HEAD
-    function applyDamageAndKnockback(enemy, damage, sourceX, sourceY, knockbackStrength = 8) {
-        const safeEnemyHp = Number.isFinite(enemy.hp) ? enemy.hp : (Number.isFinite(enemy.maxhp) ? enemy.maxhp : 0);
-        const safeDamage = Math.max(1, Math.round(Number.isFinite(damage) ? damage : attackStats.damage));
-        enemy.hp = Math.max(0, safeEnemyHp - safeDamage);
-
-        const kx = enemy.x - sourceX;
-        const ky = enemy.y - sourceY;
-        const mag = Math.sqrt(kx * kx + ky * ky) || 1;
-        const pushX = (kx / mag) * knockbackStrength;
-        const pushY = (ky / mag) * knockbackStrength;
-
-        enemy.x += pushX;
-        enemy.y += pushY;
-    }
-=======
     const keys = {};
     document.addEventListener("keydown", (e) => {
         keys[e.key] = true;
@@ -249,7 +218,6 @@ function createPlayerController(canvas, ctx, camera) {
         // Adapt to the actual number of frames in the loaded walk sprite sheet.
         player.maxFrames = Math.max(1, Math.floor(sprite.width / player.frameSize));
     });
->>>>>>> beb0f223a7952c8a0f8a546f72cf412ac8db6449
 
     function update(enemies = []) {
         let moving = false;
