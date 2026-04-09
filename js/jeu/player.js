@@ -173,22 +173,6 @@ function createPlayerController(canvas, ctx, camera) {
         return false;
     }
 
-    const keys = {};
-    document.addEventListener("keydown", (e) => {
-        keys[e.key] = true;
-    });
-    document.addEventListener("keyup", (e) => {
-        keys[e.key] = false;
-    });
-
-    // Clic sur canvas pour debug (affiche les coordonnées écran).
-    canvas.addEventListener("click", (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        console.log(x, y);
-    });
-
     // Propriétés du joueur : position, vitesse, animation.
     const player = {
         spawnX: 1774,
