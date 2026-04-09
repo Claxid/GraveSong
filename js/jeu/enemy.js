@@ -18,13 +18,14 @@ const ENEMY_TYPE_CONFIGS = {
         spriteSrc: "../assets/sprites/Orc3/orc3_walk/orc3_walk_full.png",
         frameSize: 64,
         maxFrames: 6,
-        speed: 1.75,
-        animSpeed: 10,
-        scale: 1.8,
-        hp: 16,
-        maxhp: 16,
-        hitW: 38,
-        hitH: 56
+        speed: 0.92,
+        animSpeed: 16,
+        scale: 2.2,
+        hp: 180,
+        maxhp: 180,
+        hitW: 52,
+        hitH: 72,
+        contactDamage: 14
     }
 };
 
@@ -53,7 +54,8 @@ function createEnemyController(canvas, ctx, camera, startX = 800, startY = 800, 
         hp : enemyConfig.hp,
         maxhp : enemyConfig.maxhp,
         hitW: enemyConfig.hitW,
-        hitH: enemyConfig.hitH
+        hitH: enemyConfig.hitH,
+        contactDamage: enemyConfig.contactDamage || 5
     };
 
     // Update : fait bouger l'ennemi vers le joueur.
