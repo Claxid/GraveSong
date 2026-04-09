@@ -21,8 +21,8 @@ const ENEMY_TYPE_CONFIGS = {
         speed: 0.92,
         animSpeed: 16,
         scale: 2.2,
-        hp: 180,
-        maxhp: 180,
+        hp: 120,
+        maxhp: 120,
         hitW: 52,
         hitH: 72,
         contactDamage: 14

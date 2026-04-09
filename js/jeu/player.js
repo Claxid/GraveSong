@@ -66,8 +66,8 @@ function createPlayerController(canvas, ctx, camera) {
         exp: 0,
         maxExp: 100,
         level: 1,
-        hitW: 40,
-        hitH: 60
+        hitW: 24,
+        hitH: 35
     };
 
     let facingLeft = false;
@@ -223,7 +223,7 @@ function createPlayerController(canvas, ctx, camera) {
         { id: "cooldown_down", name: "-20% Cooldown", description: "Vous attaquez plus souvent.", apply: (s) => { s.cooldown = Math.max(250, Math.round(s.cooldown * 0.8)); } },
         { id: "range_up", name: "+20% Portee", description: "Vous touchez de plus loin.", apply: (s) => { s.range = Math.round(s.range * 1.2); } },
         { id: "arc_up", name: "+15° Angle", description: "Votre attaque couvre une zone plus large.", apply: (s) => { s.halfAngle = Math.min(Math.PI, s.halfAngle + (Math.PI / 12)); } },
-        { id: "Axe", name: "+1 hache", description: "Vous gagnez une hache tourbillonante autour de vous.", apply: (s) => { s.Axe = (Number(s.Axe) || 0) + 1; } }
+        { id: "Axe", name: "+1 hache", description: "Vous gagnez une puissante hache.", apply: (s) => { s.Axe = (Number(s.Axe) || 0) + 1; } }
         
 
     ];
