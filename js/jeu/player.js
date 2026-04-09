@@ -175,8 +175,6 @@ function createPlayerController(canvas, ctx, camera) {
         return false;
     }
 
-    let facingLeft = false;
-
     sprite.addEventListener("load", () => {
         // Adapt to the actual number of frames in the loaded walk sprite sheet.
         player.maxFrames = Math.max(1, Math.floor(sprite.width / player.frameSize));
