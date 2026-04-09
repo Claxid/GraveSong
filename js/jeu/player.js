@@ -24,11 +24,40 @@ function createPlayerController(canvas, ctx, camera) {
     });
 
     const axeSprite = new Image();
-    axeSprite.src = "../../assets/sprites/Arrow(Projectile)/Arrow01(100x100).png";
+    axeSprite.src = "../assets/sprites/axe.png";
+    let axeSourceRect = null;
+    let axePivot = null;
+
+    const HURT_DURATION_MS = 250;
+    const hurtSprite = new Image();
+    hurtSprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier with shadows/Soldier-Hurt.png";
+    let hurtFrames = 1;
+    let hurtUntil = 0;
+    const attackVisualScale = 1;
+
+    hurtSprite.addEventListener("load", () => {
+        hurtFrames = Math.max(1, Math.floor(hurtSprite.width / player.frameSize));
+    });
 
     const keys = {};
-    document.addEventListener("keydown", (e) => { keys[e.key.toLowerCase()] = true; });
-    document.addEventListener("keyup", (e) => { keys[e.key.toLowerCase()] = false; });
+
+    function setKeyState(e, pressed) {
+        const key = String(e.key || "").toLowerCase();
+        const code = String(e.code || "").toLowerCase();
+
+        keys[key] = pressed;
+        keys[code] = pressed;
+
+        if (key === "z" || key === "q" || key === "s" || key === "d" ||
+            key === "arrowup" || key === "arrowleft" || key === "arrowdown" || key === "arrowright" ||
+            code === "keyz" || code === "keyq" || code === "keys" || code === "keyd" ||
+            code === "arrowup" || code === "arrowleft" || code === "arrowdown" || code === "arrowright") {
+            e.preventDefault();
+        }
+    }
+
+    window.addEventListener("keydown", (e) => { setKeyState(e, true); });
+    window.addEventListener("keyup", (e) => { setKeyState(e, false); });
 
     const player = {
         spawnX: 1774,
@@ -68,20 +97,86 @@ function createPlayerController(canvas, ctx, camera) {
         sizeMultiplier: 3,
         range: 220,
         halfAngle: Math.PI / 3,
-        Axe: false
+        Axe: 0
     };
     const attackStats = { ...BASE_ATTACK_STATS };
 
     const axeState = {
         active: false,
+        count: 0,
         angle: 0,
-        radius: 95,
+        spinAngle: 0,
+        spinSpeed: 0.10,
+        radius: 72,
         angularSpeed: 0.045,
-        damageMultiplier: 2,
+        damageMultiplier: 1.35,
         hitCooldown: 220,
-        size: 56,
+        size: 60,
         lastHitByEnemy: new Map()
     };
+
+    axeSprite.addEventListener("load", () => {
+        try {
+            const probeCanvas = document.createElement("canvas");
+            probeCanvas.width = axeSprite.naturalWidth;
+            probeCanvas.height = axeSprite.naturalHeight;
+            const probeCtx = probeCanvas.getContext("2d", { willReadFrequently: true });
+            if (!probeCtx) return;
+
+            probeCtx.drawImage(axeSprite, 0, 0);
+            const data = probeCtx.getImageData(0, 0, probeCanvas.width, probeCanvas.height).data;
+
+            let minX = probeCanvas.width;
+            let minY = probeCanvas.height;
+            let maxX = -1;
+            let maxY = -1;
+            let sumX = 0;
+            let sumY = 0;
+            let sumWeight = 0;
+
+            for (let y = 0; y < probeCanvas.height; y++) {
+                for (let x = 0; x < probeCanvas.width; x++) {
+                    const idx = (y * probeCanvas.width + x) * 4;
+                    const r = data[idx];
+                    const g = data[idx + 1];
+                    const b = data[idx + 2];
+                    const a = data[idx + 3];
+
+                    // Ignore near-black background pixels from source image.
+                    if (a < 20 || (r < 20 && g < 20 && b < 20)) continue;
+
+                    const weight = Math.max(1, a);
+                    sumX += x * weight;
+                    sumY += y * weight;
+                    sumWeight += weight;
+
+                    if (x < minX) minX = x;
+                    if (y < minY) minY = y;
+                    if (x > maxX) maxX = x;
+                    if (y > maxY) maxY = y;
+                }
+            }
+
+            if (maxX >= minX && maxY >= minY) {
+                const pad = 2;
+                const sx = Math.max(0, minX - pad);
+                const sy = Math.max(0, minY - pad);
+                const sw = Math.min(probeCanvas.width - sx, (maxX - minX + 1) + pad * 2);
+                const sh = Math.min(probeCanvas.height - sy, (maxY - minY + 1) + pad * 2);
+                axeSourceRect = { sx, sy, sw, sh };
+
+                if (sumWeight > 0) {
+                    axePivot = {
+                        x: (sumX / sumWeight) - sx,
+                        y: (sumY / sumWeight) - sy
+                    };
+                }
+            }
+        } catch (_err) {
+            axeSourceRect = null;
+            axePivot = null;
+        }
+    });
 
     function normalizeAngle(angle) {
         while (angle <= -Math.PI) angle += Math.PI * 2;
@@ -120,25 +215,56 @@ function createPlayerController(canvas, ctx, camera) {
         return attackVisualScale * Math.max(1, rangeVisualBonus);
     }
 
+    const AXE_PERK_ID = "Axe";
+    const AXE_UNLOCK_LEVEL = 5;
+
+    function getAxeSpawnChance(level) {
+        if (level < AXE_UNLOCK_LEVEL) return 0;
+        if (level === AXE_UNLOCK_LEVEL) return 1;
+
+        // Progressive spawn chance after level 5.
+        const baseChance = 0.05;
+        const growthPerLevel = 0.01;
+        const maxChance = 0.20;
+        return Math.min(maxChance, baseChance + (level - AXE_UNLOCK_LEVEL) * growthPerLevel);
+    }
+
     const perkPool = [
         { id: "damage_up", name: "+25% Degats", description: "Vos attaques frappent plus fort.", apply: (s) => { s.damage = Math.round(s.damage * 1.25); } },
         { id: "cooldown_down", name: "-20% Cooldown", description: "Vous attaquez plus souvent.", apply: (s) => { s.cooldown = Math.max(250, Math.round(s.cooldown * 0.8)); } },
         { id: "range_up", name: "+20% Portee", description: "Vous touchez de plus loin.", apply: (s) => { s.range = Math.round(s.range * 1.2); } },
         { id: "arc_up", name: "+15° Angle", description: "Votre attaque couvre une zone plus large.", apply: (s) => { s.halfAngle = Math.min(Math.PI, s.halfAngle + (Math.PI / 12)); } },
-        { id: "Axe", name: "+1 hache", description: "Vous gagnez une hache tourbillonante autour de vous.", apply: (s) => { s.Axe = true} }
+        { id: "Axe", name: "+1 hache", description: "Vous gagnez une hache tourbillonante autour de vous.", apply: (s) => { s.Axe = (Number(s.Axe) || 0) + 1; } }
         
 
     ];
 
     const pendingPerkChoices = [];
 
-    function pickRandomPerks(count) {
-        const shuffled = perkPool.slice();
+    function pickRandomPerks(count, forLevel = player.level) {
+        const regularPerks = perkPool.filter((perk) => perk.id !== AXE_PERK_ID);
+        const shuffled = regularPerks.slice();
         for (let i = shuffled.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
         }
-        return shuffled.slice(0, Math.min(count, shuffled.length)).map((perk) => ({
+
+        const selected = shuffled.slice(0, Math.min(count, shuffled.length));
+
+        const axeChance = getAxeSpawnChance(forLevel);
+        if (Math.random() < axeChance) {
+            const axePerk = perkPool.find((perk) => perk.id === AXE_PERK_ID);
+            if (axePerk) {
+                if (selected.length < count) {
+                    selected.push(axePerk);
+                } else if (selected.length > 0) {
+                    const replaceIdx = Math.floor(Math.random() * selected.length);
+                    selected[replaceIdx] = axePerk;
+                }
+            }
+        }
+
+        return selected.map((perk) => ({
             id: perk.id,
             name: perk.name,
             description: perk.description
@@ -146,8 +272,10 @@ function createPlayerController(canvas, ctx, camera) {
     }
 
     function queuePerkChoices(levelsGained = 1) {
+        const firstGainedLevel = Math.max(1, player.level - levelsGained + 1);
         for (let i = 0; i < levelsGained; i++) {
-            pendingPerkChoices.push(pickRandomPerks(3));
+            const levelForThisChoice = firstGainedLevel + i;
+            pendingPerkChoices.push(pickRandomPerks(3, levelForThisChoice));
         }
     }
 
@@ -168,6 +296,8 @@ function createPlayerController(canvas, ctx, camera) {
         const perk = perkPool.find((p) => p.id === choice.id);
         if (!perk) return null;
         perk.apply(attackStats);
+        axeState.count = Math.max(0, Number(attackStats.Axe) || 0);
+        axeState.active = axeState.count > 0;
         syncDerivedAttackVisualStats();
         return choice.id;
     }
@@ -184,33 +314,28 @@ function createPlayerController(canvas, ctx, camera) {
         return false;
     }
 
-    sprite.addEventListener("load", () => {
-        // Adapt to the actual number of frames in the loaded walk sprite sheet.
-        player.maxFrames = Math.max(1, Math.floor(sprite.width / player.frameSize));
-    });
-
     function update(enemies = []) {
         let moving = false;
         let moveX = 0;
         let moveY = 0;
 
-        if (keys["z"]) {
+        if (keys["z"] || keys["keyz"] || keys["arrowup"]) {
             moveY -= player.speed;
             player.frameY = 0;
             moving = true;
         }
-        if (keys["s"]) {
+        if (keys["s"] || keys["keys"] || keys["arrowdown"]) {
             moveY += player.speed;
             player.frameY = 0;
             moving = true;
         }
-        if (keys["q"]) {
+        if (keys["q"] || keys["keyq"] || keys["arrowleft"]) {
             moveX -= player.speed;
             player.frameY = 0;
             facingLeft = true;
             moving = true;
         }
-        if (keys["d"]) {
+        if (keys["d"] || keys["keyd"] || keys["arrowright"]) {
             moveX += player.speed;
             player.frameY = 0;
             facingLeft = false;
@@ -258,6 +383,42 @@ function createPlayerController(canvas, ctx, camera) {
             }
         }
 
+        if (axeState.active) {
+            axeState.angle = normalizeAngle(axeState.angle + axeState.angularSpeed);
+            axeState.spinAngle = normalizeAngle(axeState.spinAngle + axeState.spinSpeed);
+
+            const axeCount = Math.max(1, Math.min(5, axeState.count));
+            const step = (Math.PI * 2) / axeCount;
+            const axeHitRadius = 42;
+            const axeDamage = Math.max(1, attackStats.damage * axeState.damageMultiplier);
+
+            for (let axeIdx = 0; axeIdx < axeCount; axeIdx++) {
+                const axeAngle = axeState.angle + step * axeIdx;
+                const axeX = player.x + Math.cos(axeAngle) * axeState.radius;
+                const axeY = player.y + Math.sin(axeAngle) * axeState.radius;
+
+                for (let i = enemies.length - 1; i >= 0; i--) {
+                    const enemy = enemies[i];
+                    if (!enemy || enemy.hp <= 0) continue;
+
+                    const dx = enemy.x - axeX;
+                    const dy = enemy.y - axeY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist > axeHitRadius) continue;
+
+                    const enemyId = enemy.id ?? i;
+                    const cooldownKey = `${enemyId}:${axeIdx}`;
+                    const lastHitTime = axeState.lastHitByEnemy.get(cooldownKey) ?? 0;
+                    if (now - lastHitTime < axeState.hitCooldown) continue;
+
+                    // Axe one-shots regular orcs but not tanky Orc3.
+                    const appliedAxeDamage = enemy.type === "orc" ? enemy.hp : axeDamage;
+                    enemy.hp = Math.max(0, enemy.hp - appliedAxeDamage);
+                    axeState.lastHitByEnemy.set(cooldownKey, now);
+                }
+            }
+        }
+
         for (let i = attacks.length - 1; i >= 0; i--) {
             const atk = attacks[i];
             atk.animCounter++;
@@ -266,32 +427,6 @@ function createPlayerController(canvas, ctx, camera) {
                 atk.frameX++;
             }
 
-
-        if (axeState.active) {
-            axeState.angle = normalizeAngle(axeState.angle + axeState.angularSpeed);
-
-            const axeX = player.x + Math.cos(axeState.angle) * axeState.radius;
-            const axeY = player.y + Math.sin(axeState.angle) * axeState.radius;
-            const axeHitRadius = 42;
-            const axeDamage = Math.max(1, attackStats.damage * axeState.damageMultiplier);
-
-            for (let i = enemies.length - 1; i >= 0; i--) {
-                const enemy = enemies[i];
-                if (!enemy || enemy.hp <= 0) continue;
-
-                const dx = enemy.x - axeX;
-                const dy = enemy.y - axeY;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist > axeHitRadius) continue;
-
-                const enemyId = enemy.id ?? i;
-                const lastHitTime = axeState.lastHitByEnemy.get(enemyId) ?? 0;
-                if (now - lastHitTime < axeState.hitCooldown) continue;
-
-                enemy.hp = Math.max(0, enemy.hp - axeDamage);
-                axeState.lastHitByEnemy.set(enemyId, now);
-            }
-        }
             if (!atk.hitApplied) {
                 for (const enemy of enemies) {
                     if (!enemy || enemy.hp <= 0) continue;
@@ -321,15 +456,14 @@ function createPlayerController(canvas, ctx, camera) {
         const activeSprite = hurtActive ? hurtSprite : sprite;
         const activeMaxFrames = hurtActive ? hurtFrames : player.maxFrames;
         const activeFrameX = Math.min(player.frameX, activeMaxFrames - 1);
+        const activeFrameY = hurtActive ? 0 : player.frameY;
 
-        if (facingLeft) {
-            ctx.save();
-            ctx.translate(drawX + size, drawY);
-            ctx.scale(-1, 1);
+        // Draw once for both directions, then optionally apply a red damage tint.
+        const drawCharacter = () => {
             ctx.drawImage(
                 activeSprite,
                 activeFrameX * player.frameSize,
-                player.frameY * player.frameSize,
+                activeFrameY * player.frameSize,
                 player.frameSize,
                 player.frameSize,
                 0,
@@ -337,21 +471,21 @@ function createPlayerController(canvas, ctx, camera) {
                 size,
                 size
             );
+        };
+
+        if (facingLeft) {
+            ctx.save();
+            ctx.translate(drawX + size, drawY);
+            ctx.scale(-1, 1);
+            drawCharacter();
             ctx.restore();
             return;
         }
 
-        ctx.drawImage(
-            activeSprite,
-            activeFrameX * player.frameSize,
-            player.frameY * player.frameSize,
-            player.frameSize,
-            player.frameSize,
-            drawX,
-            drawY,
-            size,
-            size
-        );
+        ctx.save();
+        ctx.translate(drawX, drawY);
+        drawCharacter();
+        ctx.restore();
     }
 
     function drawAttacks() {
@@ -372,22 +506,39 @@ function createPlayerController(canvas, ctx, camera) {
         }
 
         if (axeState.active) {
-            const axeX = (player.x + Math.cos(axeState.angle) * axeState.radius - camera.x) * camera.zoom;
-            const axeY = (player.y + Math.sin(axeState.angle) * axeState.radius - camera.y) * camera.zoom;
             const axeSize = axeState.size * camera.zoom;
 
-            ctx.save();
-            ctx.translate(axeX, axeY);
-            ctx.rotate(axeState.angle + Math.PI / 2);
-            if (axeSprite.complete && axeSprite.naturalWidth > 0) {
-                ctx.drawImage(axeSprite, -axeSize / 2, -axeSize / 2, axeSize, axeSize);
-            } else {
-                ctx.fillStyle = "#d8d8d8";
-                ctx.beginPath();
-                ctx.arc(0, 0, axeSize * 0.35, 0, Math.PI * 2);
-                ctx.fill();
+            const axeCount = Math.max(1, Math.min(5, axeState.count));
+            const step = (Math.PI * 2) / axeCount;
+
+            for (let axeIdx = 0; axeIdx < axeCount; axeIdx++) {
+                const axeAngle = axeState.angle + step * axeIdx;
+                const axeX = (player.x + Math.cos(axeAngle) * axeState.radius - camera.x) * camera.zoom;
+                const axeY = (player.y + Math.sin(axeAngle) * axeState.radius - camera.y) * camera.zoom;
+                const sourceRect = axeSourceRect || { sx: 0, sy: 0, sw: axeSprite.naturalWidth || 1, sh: axeSprite.naturalHeight || 1 };
+                const pivot = axePivot || { x: sourceRect.sw / 2, y: sourceRect.sh / 2 };
+                const renderScale = axeSize / Math.max(sourceRect.sw, sourceRect.sh);
+                const renderW = sourceRect.sw * renderScale;
+                const renderH = sourceRect.sh * renderScale;
+
+                ctx.save();
+                ctx.translate(axeX, axeY);
+                ctx.rotate(axeAngle + Math.PI + axeState.spinAngle);
+                if (axeSprite.complete && axeSprite.naturalWidth > 0) {
+                    ctx.drawImage(
+                        axeSprite,
+                        sourceRect.sx,
+                        sourceRect.sy,
+                        sourceRect.sw,
+                        sourceRect.sh,
+                        -pivot.x * renderScale,
+                        -pivot.y * renderScale,
+                        renderW,
+                        renderH
+                    );
+                }
+                ctx.restore();
             }
-            ctx.restore();
         }
     }
 

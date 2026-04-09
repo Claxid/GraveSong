@@ -336,13 +336,16 @@ function loop() {
 
     if (canUpdateWorld) {
         let touchingEnemy = false;
+        let contactDamage = CONTACT_DAMAGE;
         for (const ec of enemyControllers) {
-            if (isRectOverlap(playerHitbox, getEntityHitbox(ec.enemy))) { touchingEnemy = true; break; }
+            if (!isRectOverlap(playerHitbox, getEntityHitbox(ec.enemy))) continue;
+            touchingEnemy = true;
+            contactDamage = Math.max(contactDamage, ec.enemy.contactDamage || CONTACT_DAMAGE);
         }
         if (touchingEnemy) {
             const now = performance.now();
             if (now - lastContactDamageAt >= DAMAGE_COOLDOWN_MS) {
-                playerController.player.hp = Math.max(0, playerController.player.hp - CONTACT_DAMAGE);
+                playerController.player.hp = Math.max(0, playerController.player.hp - contactDamage);
                 playerController.triggerHurt();
                 lastContactDamageAt = now;
             }
