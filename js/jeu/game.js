@@ -1,9 +1,14 @@
 // Boucle principale du jeu
 // Fichier principal du jeu avec boucle, canvas, etc.
 
+console.log("📝 game.js chargé");
+
 // CANVAS PLEIN ECRAN + RESPONSIVE
 const canvas = document.getElementById("game");
+console.log("Canvas element:", canvas);
+
 const ctx = canvas.getContext("2d");
+console.log("Canvas context:", ctx);
 
 // Ajuste la taille du canvas à la taille de l'écran
 function resizeCanvas() {
@@ -13,9 +18,17 @@ function resizeCanvas() {
 resizeCanvas();
 
 // Je crée les contrôleurs pour la map, la caméra, le joueur et l'ennemi.
+console.log("✅ Création du mapRenderer...");
 const mapRenderer = createMapRenderer(canvas, ctx);
+console.log("✅ mapRenderer créé:", mapRenderer);
+
+console.log("✅ Création du cameraController...");
 const cameraController = createCameraController(canvas, mapRenderer.MAP_WIDTH, mapRenderer.MAP_HEIGHT);
+console.log("✅ cameraController créé:", cameraController);
+
+console.log("✅ Création du playerController...");
 const playerController = createPlayerController(canvas, ctx, cameraController.camera);
+console.log("✅ playerController créé:", playerController);
 const enemyControllers = [];
 const pnjControllers = [];
 

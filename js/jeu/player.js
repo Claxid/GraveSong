@@ -1,6 +1,8 @@
 // Controleur du joueur
 // Deplacement ZQSD avec collisions, auto-attaque et systeme de perks.
 
+console.log("📝 player.js chargé");
+
 function createPlayerController(canvas, ctx, camera) {
     const sprite = new Image();
     sprite.src = "../../assets/sprites/Characters(100x100)/Soldier/Soldier/Soldier-Walk.png";
@@ -24,7 +26,7 @@ function createPlayerController(canvas, ctx, camera) {
         spawnY: 2200,
         x: 1774,
         y: 2200,
-        speed: 1.5,
+        speed: 6,
         frameX: 0,
         frameY: 0,
         frameSize: 100,
@@ -172,29 +174,6 @@ function createPlayerController(canvas, ctx, camera) {
         }
         return false;
     }
-
-    // Propriétés du joueur : position, vitesse, animation.
-    const player = {
-        spawnX: 1774,
-        spawnY: 2200,
-        x: 1774,
-        y: 2200,
-        speed: 6,
-        frameX: 0,
-        frameY: 0,
-        frameSize: 100,
-        maxFrames: 8,
-        animCounter: 0,
-        animSpeed: 10,
-        scale: 2,
-        hp : 100,
-        maxHp : 100,
-        exp : 0,
-        maxExp : 100,
-        level : 1,
-        hitW: 40,
-        hitH: 60
-    };
 
     let facingLeft = false;
 
