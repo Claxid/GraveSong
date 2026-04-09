@@ -1,6 +1,6 @@
 function createpnjController(canvas, ctx, camera, startX = 800, startY = 800) {
     const sprite = new Image();
-    sprite.src = "../assets/sprites/villager/villager.png";
+    sprite.src = "../../assets/sprites/villager/villager.png";
 
     const pnj = {
         spawnX: startX,

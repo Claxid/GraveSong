@@ -3,7 +3,7 @@
 
 window.obstacles = [];
 
-const MAP_IMAGE_SRC = "../assets/images/Ville.png";
+const MAP_IMAGE_SRC = "../../assets/images/Ville.png";
 
 function idxAt(x, y, width) {
     return y * width + x;

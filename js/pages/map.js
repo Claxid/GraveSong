@@ -4,7 +4,7 @@
 function createMapRenderer(canvas, ctx) {
     // Image de la map.
     const map = new Image();
-    map.src = "../assets/images/Ville.png";
+    map.src = "../../assets/images/Ville.png";
 
     // Dimensions de la map en pixels.
     const MAP_WIDTH = 3200;
