@@ -14,8 +14,17 @@ function createPlayerController(canvas, ctx, camera) {
         attackEffectFrames = Math.max(1, Math.floor(attackSprite.width / 100));
     });
 
+    const hurtSprite = new Image();
+    hurtSprite.src = "../../assets/sprites/Characters(100x100)/Soldier/Soldier/Soldier-Hurt.png";
+    let hurtFrames = 1;
+    let hurtUntil = 0;
+    const HURT_DURATION_MS = 300;
+    hurtSprite.addEventListener("load", () => {
+        hurtFrames = Math.max(1, Math.floor(hurtSprite.width / 100));
+    });
+
     const axeSprite = new Image();
-    axeSprite.src = "../../assets/sprites/Arrow(Projectile)/Arrow.png";
+    axeSprite.src = "../../assets/sprites/Arrow(Projectile)/Arrow01(100x100).png";
 
     const keys = {};
     document.addEventListener("keydown", (e) => { keys[e.key.toLowerCase()] = true; });
