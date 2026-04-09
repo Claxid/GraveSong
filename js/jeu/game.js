@@ -34,6 +34,10 @@ const ENEMY_GROWTH_EVERY_MS = 20000;
 const ENEMIES_PER_GROWTH_STEP = 3;
 const ABSOLUTE_MAX_ENEMIES = 300;
 const ENEMY_KILL_EXP = 30;
+const ENEMY_SPAWN_WEIGHTS = [
+    { type: "orc", weight: 95 },
+    { type: "orc3", weight: 5 }
+];
 
 const CONTACT_DAMAGE = 5;
 const DAMAGE_COOLDOWN_MS = 500;
@@ -138,9 +142,25 @@ function getRandomSpawnAroundPlayer(player) {
     };
 }
 
+function pickWeightedEnemyType() {
+    const totalWeight = ENEMY_SPAWN_WEIGHTS.reduce((sum, entry) => sum + entry.weight, 0);
+    if (totalWeight <= 0) return "orc";
+
+    let roll = Math.random() * totalWeight;
+    for (const entry of ENEMY_SPAWN_WEIGHTS) {
+        roll -= entry.weight;
+        if (roll <= 0) {
+            return entry.type;
+        }
+    }
+
+    return ENEMY_SPAWN_WEIGHTS[ENEMY_SPAWN_WEIGHTS.length - 1].type;
+}
+
 function spawnEnemyNearPlayer() {
     const spawn = getRandomSpawnAroundPlayer(playerController.player);
-    enemyControllers.push(createEnemyController(canvas, ctx, cameraController.camera, spawn.x, spawn.y));
+    const enemyType = pickWeightedEnemyType();
+    enemyControllers.push(createEnemyController(canvas, ctx, cameraController.camera, spawn.x, spawn.y, enemyType));
 }
 
 function spawnPnj(x, y) {
@@ -310,6 +330,7 @@ function loop() {
             const now = performance.now();
             if (now - lastContactDamageAt >= DAMAGE_COOLDOWN_MS) {
                 playerController.player.hp = Math.max(0, playerController.player.hp - CONTACT_DAMAGE);
+                playerController.triggerHurt();
                 lastContactDamageAt = now;
             }
         }
@@ -330,7 +351,11 @@ function loop() {
     // CAMERA
     cameraController.centerOn(playerController.player.x, playerController.player.y);
 
-    // MAP
+    // Nettoyer le canvas
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // FOND = MAP
     mapRenderer.draw(cameraController.camera);
      // PNJ
         for (const pnj of pnjControllers) {
@@ -348,7 +373,10 @@ function loop() {
         enemyController.draw();
     }
 
-    // HITBOX DEBUG
+    if (window.drawCollidersOverlay) {
+        window.drawCollidersOverlay(ctx, cameraController.camera, cameraController.camera.zoom);
+    }
+
     if (SHOW_HITBOXES) {
         ctx.save();
         ctx.lineWidth = 2;

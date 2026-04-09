@@ -1,29 +1,59 @@
 // Contrôleur des ennemis
 // Les ennemis suivent le joueur et ont une animation de marche.
 
-function createEnemyController(canvas, ctx, camera, startX = 800, startY = 800) {
-    // Je charge le sprite de l'orc avec ombres.
+const ENEMY_TYPE_CONFIGS = {
+    orc: {
+        spriteSrc: "../assets/sprites/Characters(100x100)/Orc/Orc with shadows/Orc-Walk.png",
+        frameSize: 100,
+        maxFrames: 6,
+        speed: 1.52,
+        animSpeed: 12,
+        scale: 2,
+        hp: 20,
+        maxhp: 20,
+        hitW: 40,
+        hitH: 60
+    },
+    orc3: {
+        spriteSrc: "../assets/sprites/Orc3/orc3_walk/orc3_walk_full.png",
+        frameSize: 64,
+        maxFrames: 6,
+        speed: 1.75,
+        animSpeed: 10,
+        scale: 1.8,
+        hp: 16,
+        maxhp: 16,
+        hitW: 38,
+        hitH: 56
+    }
+};
+
+function createEnemyController(canvas, ctx, camera, startX = 800, startY = 800, enemyType = "orc") {
+    const enemyConfig = ENEMY_TYPE_CONFIGS[enemyType] || ENEMY_TYPE_CONFIGS.orc;
+
+    // Je charge le sprite du type d'ennemi choisi.
     const sprite = new Image();
-    sprite.src = "../assets/sprites/Characters(100x100)/Orc/Orc with shadows/Orc-Walk.png";
+    sprite.src = enemyConfig.spriteSrc;
 
     // Propriétés de l'ennemi : position, vitesse, animation, etc.
     const enemy = {
+        type: enemyType,
         spawnX: startX,
         spawnY: startY,
         x: startX,
         y: startY,
-        speed: 1.52,
+        speed: enemyConfig.speed,
         frameX: 0,
         frameY: 0,
-        frameSize: 100,
-        maxFrames: 6,
+        frameSize: enemyConfig.frameSize,
+        maxFrames: enemyConfig.maxFrames,
         animCounter: 0,
-        animSpeed: 12,
-        scale: 2,
-        hp : 20,
-        maxhp : 20,
-        hitW: 40,
-        hitH: 60
+        animSpeed: enemyConfig.animSpeed,
+        scale: enemyConfig.scale,
+        hp : enemyConfig.hp,
+        maxhp : enemyConfig.maxhp,
+        hitW: enemyConfig.hitW,
+        hitH: enemyConfig.hitH
     };
 
     // Update : fait bouger l'ennemi vers le joueur.

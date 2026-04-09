@@ -1,8 +1,7 @@
-// Contrôleur du joueur
-// Le joueur se déplace avec ZQSD et a des animations selon la direction.
+// Controleur du joueur
+// Deplacement ZQSD avec collisions, auto-attaque et systeme de perks.
 
 function createPlayerController(canvas, ctx, camera) {
-    // Sprite du soldat.
     const sprite = new Image();
     sprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier/Soldier-Walk.png";
 
@@ -13,27 +12,82 @@ function createPlayerController(canvas, ctx, camera) {
         attackEffectFrames = Math.max(1, Math.floor(attackSprite.width / 100));
     });
 
+    const axeSprite = new Image();
+    axeSprite.src = "../assets/sprites/Arrow(Projectile)/Arrow.png";
+
+    const keys = {};
+    document.addEventListener("keydown", (e) => { keys[e.key.toLowerCase()] = true; });
+    document.addEventListener("keyup", (e) => { keys[e.key.toLowerCase()] = false; });
+
+    const player = {
+        spawnX: 1774,
+        spawnY: 2200,
+        x: 1774,
+        y: 2200,
+        speed: 1.5,
+        frameX: 0,
+        frameY: 0,
+        frameSize: 100,
+        maxFrames: 8,
+        animCounter: 0,
+        animSpeed: 10,
+        scale: 2,
+        hp: 100,
+        maxHp: 100,
+        exp: 0,
+        maxExp: 100,
+        level: 1,
+        hitW: 40,
+        hitH: 60
+    };
+
+    let facingLeft = false;
+
+    sprite.addEventListener("load", () => {
+        player.maxFrames = Math.max(1, Math.floor(sprite.width / player.frameSize));
+    });
+
     const attacks = [];
     let lastAttackTime = 0;
-    // Valeurs de reference: on s'en sert pour recalculer les stats visuelles derivees.
+
     const BASE_ATTACK_STATS = {
         cooldown: 2000,
         damage: 10,
         animSpeed: 4,
         sizeMultiplier: 3,
         range: 220,
-        halfAngle: Math.PI / 3
+        halfAngle: Math.PI / 3,
+        Axe: false
     };
-    const attackStats = {
-        cooldown: BASE_ATTACK_STATS.cooldown,
-        damage: BASE_ATTACK_STATS.damage,
-        animSpeed: BASE_ATTACK_STATS.animSpeed,
-        sizeMultiplier: BASE_ATTACK_STATS.sizeMultiplier,
-        range: BASE_ATTACK_STATS.range,
-        halfAngle: BASE_ATTACK_STATS.halfAngle
+    const attackStats = { ...BASE_ATTACK_STATS };
+
+    const axeState = {
+        active: false,
+        angle: 0,
+        radius: 95,
+        angularSpeed: 0.045,
+        damageMultiplier: 2,
+        hitCooldown: 220,
+        size: 56,
+        lastHitByEnemy: new Map()
     };
 
-    // Le rendu suit la puissance reelle: portee/angle/cooldown influencent visuel et rythme.
+    function normalizeAngle(angle) {
+        while (angle <= -Math.PI) angle += Math.PI * 2;
+        while (angle > Math.PI) angle -= Math.PI * 2;
+        return angle;
+    }
+
+   
+   function AxeSkill(Axe) {
+    
+   }
+   
+   
+   
+   
+   
+   
     function syncDerivedAttackVisualStats() {
         const rangeRatio = attackStats.range / BASE_ATTACK_STATS.range;
         const angleRatio = attackStats.halfAngle / BASE_ATTACK_STATS.halfAngle;
@@ -49,31 +103,20 @@ function createPlayerController(canvas, ctx, camera) {
         );
     }
 
+    function getSwordVisualScale() {
+        const rangeRatio = attackStats.range / BASE_ATTACK_STATS.range;
+        const rangeVisualBonus = 1 + (rangeRatio - 1) * 1.6;
+        return attackVisualScale * Math.max(1, rangeVisualBonus);
+    }
+
     const perkPool = [
-        {
-            id: "damage_up",
-            name: "+25% Degats",
-            description: "Vos attaques frappent plus fort.",
-            apply: (stats) => { stats.damage = Math.round(stats.damage * 1.25); }
-        },
-        {
-            id: "cooldown_down",
-            name: "-20% Cooldown",
-            description: "Vous attaquez plus souvent.",
-            apply: (stats) => { stats.cooldown = Math.max(250, Math.round(stats.cooldown * 0.8)); }
-        },
-        {
-            id: "range_up",
-            name: "+20% Portee",
-            description: "Vous touchez de plus loin.",
-            apply: (stats) => { stats.range = Math.round(stats.range * 1.2); }
-        },
-        {
-            id: "arc_up",
-            name: "+15° Angle",
-            description: "Votre attaque couvre une zone plus large.",
-            apply: (stats) => { stats.halfAngle = Math.min(Math.PI, stats.halfAngle + (Math.PI / 12)); }
-        }
+        { id: "damage_up", name: "+25% Degats", description: "Vos attaques frappent plus fort.", apply: (s) => { s.damage = Math.round(s.damage * 1.25); } },
+        { id: "cooldown_down", name: "-20% Cooldown", description: "Vous attaquez plus souvent.", apply: (s) => { s.cooldown = Math.max(250, Math.round(s.cooldown * 0.8)); } },
+        { id: "range_up", name: "+20% Portee", description: "Vous touchez de plus loin.", apply: (s) => { s.range = Math.round(s.range * 1.2); } },
+        { id: "arc_up", name: "+15° Angle", description: "Votre attaque couvre une zone plus large.", apply: (s) => { s.halfAngle = Math.min(Math.PI, s.halfAngle + (Math.PI / 12)); } },
+        { id: "Axe", name: "+1 hache", description: "Vous gagnez une hache tourbillonante autour de vous.", apply: (s) => { s.Axe = true} }
+        
+
     ];
 
     const pendingPerkChoices = [];
@@ -82,9 +125,7 @@ function createPlayerController(canvas, ctx, camera) {
         const shuffled = perkPool.slice();
         for (let i = shuffled.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            const tmp = shuffled[i];
-            shuffled[i] = shuffled[j];
-            shuffled[j] = tmp;
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
         }
         return shuffled.slice(0, Math.min(count, shuffled.length)).map((perk) => ({
             id: perk.id,
@@ -95,7 +136,6 @@ function createPlayerController(canvas, ctx, camera) {
 
     function queuePerkChoices(levelsGained = 1) {
         for (let i = 0; i < levelsGained; i++) {
-            // 3 choix uniques a chaque niveau gagne.
             pendingPerkChoices.push(pickRandomPerks(3));
         }
     }
@@ -109,43 +149,29 @@ function createPlayerController(canvas, ctx, camera) {
         return pendingPerkChoices.length > 0;
     }
 
-    function applyPerkByIndex(index) {
-        const choices = getCurrentPerkChoices();
-        if (!choices) return false;
-        if (index < 0 || index >= choices.length) return false;
-
-        const chosen = choices[index];
-        const fullPerk = perkPool.find((perk) => perk.id === chosen.id);
-        if (!fullPerk) return false;
-
-        fullPerk.apply(attackStats);
-        // Met a jour les stats visuelles dependantes apres chaque perk gameplay.
+    function applyPerkByIndex(idx) {
+        if (!hasPendingPerks()) return null;
+        const choices = pendingPerkChoices.shift();
+        const choice = choices[idx];
+        if (!choice) return null;
+        const perk = perkPool.find((p) => p.id === choice.id);
+        if (!perk) return null;
+        perk.apply(attackStats);
         syncDerivedAttackVisualStats();
-        pendingPerkChoices.shift();
-        return true;
+        return choice.id;
     }
 
-    function normalizeAngle(angle) {
-        while (angle > Math.PI) angle -= Math.PI * 2;
-        while (angle < -Math.PI) angle += Math.PI * 2;
-        return angle;
+    function collidesAt(x, y) {
+        if (!Array.isArray(window.obstacles) || typeof window.rectCollision !== "function") return false;
+        const hitX = x - player.hitW / 2;
+        const hitY = y - player.hitH / 2;
+        for (const o of window.obstacles) {
+            if (window.rectCollision(hitX, hitY, player.hitW, player.hitH, o.x, o.y, o.w, o.h)) {
+                return true;
+            }
+        }
+        return false;
     }
-
-    const keys = {};
-    document.addEventListener("keydown", (e) => {
-        keys[e.key] = true;
-    });
-    document.addEventListener("keyup", (e) => {
-        keys[e.key] = false;
-    });
-
-    // Clic sur canvas pour debug (affiche les coordonnées écran).
-    canvas.addEventListener("click", (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        console.log(x, y);
-    });
 
     // Propriétés du joueur : position, vitesse, animation.
     const player = {
@@ -179,28 +205,40 @@ function createPlayerController(canvas, ctx, camera) {
 
     function update(enemies = []) {
         let moving = false;
+        let moveX = 0;
+        let moveY = 0;
 
         if (keys["z"]) {
-            player.y -= player.speed;
-            player.frameY = 0; // Haut
+            moveY -= player.speed;
+            player.frameY = 0;
             moving = true;
         }
         if (keys["s"]) {
-            player.y += player.speed;
+            moveY += player.speed;
             player.frameY = 0;
             moving = true;
         }
         if (keys["q"]) {
-            player.x -= player.speed;
+            moveX -= player.speed;
             player.frameY = 0;
             facingLeft = true;
             moving = true;
         }
         if (keys["d"]) {
-            player.x += player.speed;
+            moveX += player.speed;
             player.frameY = 0;
             facingLeft = false;
             moving = true;
+        }
+
+        const nextX = player.x + moveX;
+        const nextY = player.y + moveY;
+
+        if (!collidesAt(nextX, player.y)) {
+            player.x = nextX;
+        }
+        if (!collidesAt(player.x, nextY)) {
+            player.y = nextY;
         }
 
         if (moving) {
@@ -213,13 +251,12 @@ function createPlayerController(canvas, ctx, camera) {
             player.frameX = 0;
         }
 
-        // Auto-attack : toutes les 2s vers l'ennemi le plus proche
         const now = performance.now();
         if (now - lastAttackTime >= attackStats.cooldown && enemies.length > 0) {
             let nearest = null;
             let nearestDist = Infinity;
             for (const e of enemies) {
-                if (e.hp <= 0) continue;
+                if (!e || e.hp <= 0) continue;
                 const dx = e.x - player.x;
                 const dy = e.y - player.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
@@ -230,19 +267,11 @@ function createPlayerController(canvas, ctx, camera) {
             }
             if (nearest) {
                 const angle = Math.atan2(nearest.y - player.y, nearest.x - player.x);
-                attacks.push({
-                    x: player.x,
-                    y: player.y,
-                    angle,
-                    frameX: 0,
-                    animCounter: 0,
-                    hitApplied: false
-                });
+                attacks.push({ x: player.x, y: player.y, angle, frameX: 0, animCounter: 0, hitApplied: false });
                 lastAttackTime = now;
             }
         }
 
-        // Avancer l'animation des effets d'attaque
         for (let i = attacks.length - 1; i >= 0; i--) {
             const atk = attacks[i];
             atk.animCounter++;
@@ -251,19 +280,42 @@ function createPlayerController(canvas, ctx, camera) {
                 atk.frameX++;
             }
 
+
+        if (axeState.active) {
+            axeState.angle = normalizeAngle(axeState.angle + axeState.angularSpeed);
+
+            const axeX = player.x + Math.cos(axeState.angle) * axeState.radius;
+            const axeY = player.y + Math.sin(axeState.angle) * axeState.radius;
+            const axeHitRadius = 42;
+            const axeDamage = Math.max(1, attackStats.damage * axeState.damageMultiplier);
+
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                if (!enemy || enemy.hp <= 0) continue;
+
+                const dx = enemy.x - axeX;
+                const dy = enemy.y - axeY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > axeHitRadius) continue;
+
+                const enemyId = enemy.id ?? i;
+                const lastHitTime = axeState.lastHitByEnemy.get(enemyId) ?? 0;
+                if (now - lastHitTime < axeState.hitCooldown) continue;
+
+                enemy.hp = Math.max(0, enemy.hp - axeDamage);
+                axeState.lastHitByEnemy.set(enemyId, now);
+            }
+        }
             if (!atk.hitApplied) {
                 for (const enemy of enemies) {
-                    if (enemy.hp <= 0) continue;
-
+                    if (!enemy || enemy.hp <= 0) continue;
                     const dx = enemy.x - atk.x;
                     const dy = enemy.y - atk.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     if (distance > attackStats.range) continue;
-
                     const enemyAngle = Math.atan2(dy, dx);
                     const delta = Math.abs(normalizeAngle(enemyAngle - atk.angle));
                     if (delta > attackStats.halfAngle) continue;
-
                     enemy.hp = Math.max(0, enemy.hp - attackStats.damage);
                 }
                 atk.hitApplied = true;
@@ -279,15 +331,18 @@ function createPlayerController(canvas, ctx, camera) {
         const size = player.frameSize * player.scale * camera.zoom;
         const drawX = (player.x - camera.x) * camera.zoom - size / 2;
         const drawY = (player.y - camera.y) * camera.zoom - size / 2;
+        const hurtActive = performance.now() < hurtUntil && hurtSprite.complete && hurtSprite.naturalWidth > 0;
+        const activeSprite = hurtActive ? hurtSprite : sprite;
+        const activeMaxFrames = hurtActive ? hurtFrames : player.maxFrames;
+        const activeFrameX = Math.min(player.frameX, activeMaxFrames - 1);
 
         if (facingLeft) {
             ctx.save();
             ctx.translate(drawX + size, drawY);
             ctx.scale(-1, 1);
-
             ctx.drawImage(
-                sprite,
-                player.frameX * player.frameSize,
+                activeSprite,
+                activeFrameX * player.frameSize,
                 player.frameY * player.frameSize,
                 player.frameSize,
                 player.frameSize,
@@ -296,14 +351,13 @@ function createPlayerController(canvas, ctx, camera) {
                 size,
                 size
             );
-
             ctx.restore();
             return;
         }
 
         ctx.drawImage(
-            sprite,
-            player.frameX * player.frameSize,
+            activeSprite,
+            activeFrameX * player.frameSize,
             player.frameY * player.frameSize,
             player.frameSize,
             player.frameSize,
@@ -330,6 +384,29 @@ function createPlayerController(canvas, ctx, camera) {
             );
             ctx.restore();
         }
+
+        if (axeState.active) {
+            const axeX = (player.x + Math.cos(axeState.angle) * axeState.radius - camera.x) * camera.zoom;
+            const axeY = (player.y + Math.sin(axeState.angle) * axeState.radius - camera.y) * camera.zoom;
+            const axeSize = axeState.size * camera.zoom;
+
+            ctx.save();
+            ctx.translate(axeX, axeY);
+            ctx.rotate(axeState.angle + Math.PI / 2);
+            if (axeSprite.complete && axeSprite.naturalWidth > 0) {
+                ctx.drawImage(axeSprite, -axeSize / 2, -axeSize / 2, axeSize, axeSize);
+            } else {
+                ctx.fillStyle = "#d8d8d8";
+                ctx.beginPath();
+                ctx.arc(0, 0, axeSize * 0.35, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+    }
+
+    function triggerHurt() {
+        hurtUntil = performance.now() + HURT_DURATION_MS;
     }
 
     return {
@@ -341,6 +418,7 @@ function createPlayerController(canvas, ctx, camera) {
         getCurrentPerkChoices,
         hasPendingPerks,
         applyPerkByIndex,
+        triggerHurt,
         getAttackStats: () => ({ ...attackStats })
     };
 }
