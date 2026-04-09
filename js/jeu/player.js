@@ -15,6 +15,13 @@ function createPlayerController(canvas, ctx, camera) {
     const axeSprite = new Image();
     axeSprite.src = "../assets/sprites/Arrow(Projectile)/Arrow.png";
 
+    const HURT_DURATION_MS = 250;
+    const hurtSprite = new Image();
+    hurtSprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier with shadows/Soldier-Hurt.png";
+    const hurtFrames = 1;
+    let hurtUntil = 0;
+    const attackVisualScale = 1;
+
     const keys = {};
     document.addEventListener("keydown", (e) => { keys[e.key.toLowerCase()] = true; });
     document.addEventListener("keyup", (e) => { keys[e.key.toLowerCase()] = false; });
