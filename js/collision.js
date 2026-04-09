@@ -240,7 +240,7 @@ window.drawCollidersOverlay = function(ctx, camera, zoom = 1) {
         const sw = o.w * zoom;
         const sh = o.h * zoom;
         ctx.strokeRect(sx, sy, sw, sh);
-    }1
+    }
 
     ctx.restore();
 };

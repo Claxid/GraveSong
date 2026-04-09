@@ -1,36 +1,33 @@
-// Boucle principale du jeu
-// Fichier principal du jeu avec boucle, canvas, etc.
+// Fichier principal du jeu
+// Importe tous les modules et lance le jeu
 
-console.log("📝 game.js chargé");
+// Imports des modules
+// Note: En JavaScript vanilla, on utilise des scripts séparés dans le HTML
+// Ces imports sont conceptuels pour montrer la structure modulaire
 
-// CANVAS PLEIN ECRAN + RESPONSIVE
-const canvas = document.getElementById("game");
-console.log("Canvas element:", canvas);
+console.log("🎮 Chargement du jeu principal...");
 
-const ctx = canvas.getContext("2d");
-console.log("Canvas context:", ctx);
+// Les modules sont chargés via les scripts dans ville.html
+// game-init.js, game-spawn.js, game-ui.js, game-loop.js
 
-// Ajuste la taille du canvas à la taille de l'écran
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+function startGame() {
+    console.log("🚀 Démarrage du jeu...");
+
+    // Initialisation
+    initGame();
+    initSpawns();
+    initUI();
+
+    // Lancement de la boucle
+    console.log("▶️ Boucle de jeu démarrée");
+    loop();
 }
-resizeCanvas();
 
-// Je crée les contrôleurs pour la map, la caméra, le joueur et l'ennemi.
-console.log("✅ Création du mapRenderer...");
-const mapRenderer = createMapRenderer(canvas, ctx);
-console.log("✅ mapRenderer créé:", mapRenderer);
-
-console.log("✅ Création du cameraController...");
-const cameraController = createCameraController(canvas, mapRenderer.MAP_WIDTH, mapRenderer.MAP_HEIGHT);
-console.log("✅ cameraController créé:", cameraController);
-
-console.log("✅ Création du playerController...");
-const playerController = createPlayerController(canvas, ctx, cameraController.camera);
-console.log("✅ playerController créé:", playerController);
-const enemyControllers = [];
-const pnjControllers = [];
+// Attendre que tous les scripts soient chargés
+window.addEventListener('load', () => {
+    console.log("📦 Tous les scripts chargés, démarrage du jeu...");
+    startGame();
+});
 
 const SPAWN_RING_MIN = 500;
 const SPAWN_RING_MAX = 700;
