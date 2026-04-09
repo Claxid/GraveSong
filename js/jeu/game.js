@@ -17,6 +17,7 @@ const mapRenderer = createMapRenderer(canvas, ctx);
 const cameraController = createCameraController(canvas, mapRenderer.MAP_WIDTH, mapRenderer.MAP_HEIGHT);
 const playerController = createPlayerController(canvas, ctx, cameraController.camera);
 const enemyControllers = [];
+const pnjControllers = [];
 
 const SPAWN_RING_MIN = 500;
 const SPAWN_RING_MAX = 700;
@@ -27,7 +28,7 @@ const SPAWN_INTERVAL_DECAY_EVERY_MS = 15000;
 const BASE_SPAWN_BATCH_SIZE = 1;
 const MAX_SPAWN_BATCH_SIZE = 4;
 const SPAWN_BATCH_GROWTH_EVERY_MS = 30000;
-const INITIAL_ENEMY_COUNT = 5;
+const INITIAL_ENEMY_COUNT = 4;
 const BASE_MAX_ENEMIES = 7;
 const ENEMY_GROWTH_EVERY_MS = 20000;
 const ENEMIES_PER_GROWTH_STEP = 3;
@@ -162,6 +163,10 @@ function spawnEnemyNearPlayer() {
     enemyControllers.push(createEnemyController(canvas, ctx, cameraController.camera, spawn.x, spawn.y, enemyType));
 }
 
+function spawnPnj(x, y) {
+    pnjControllers.push(createpnjController(canvas, ctx, cameraController.camera, x, y));
+}
+
 function getMaxEnemyCount(now) {
     const elapsed = now - gameStartAt;
     const growthSteps = Math.floor(elapsed / ENEMY_GROWTH_EVERY_MS);
@@ -192,6 +197,17 @@ function givePlayerExp(amount) {
 for (let i = 0; i < INITIAL_ENEMY_COUNT; i++) {
     if (!isMap1) break;
     spawnEnemyNearPlayer();
+}
+
+// SPAWN DES PNJ statiques (uniquement dans la ville)
+if (isVilleMap) {
+    spawnPnj(1700, 2000);
+    spawnPnj(2200, 1250);
+    spawnPnj(2200, 2250);
+    spawnPnj(1975, 2500);
+    spawnPnj(1350, 2375);
+    spawnPnj(3150, 1225);
+    spawnPnj(2875, 2950);
 }
 
 window.addEventListener("keydown", (e) => {
@@ -226,9 +242,7 @@ canvas.addEventListener("click", (e) => {
         if (!insideX || !insideY) continue;
 
         const applied = playerController.applyPerkByIndex(i);
-        if (applied) {
-            e.preventDefault();
-        }
+        if (applied) e.preventDefault();
         break;
     }
 });
@@ -255,12 +269,13 @@ window.addEventListener("resize", () => {
     uiStyles = readUiStyles();
 });
 
-// La boucle principale du jeu : update et draw à chaque frame.
+// Boucle du jeu
 function loop() {
     const canUpdateWorld = !playerController.hasPendingPerks();
 
+    // ── UPDATES ──────────────────────────────────────────
     if (canUpdateWorld) {
-        const enemies = isMap1 ? enemyControllers.map((controller) => controller.enemy) : [];
+        const enemies = isMap1 ? enemyControllers.map((c) => c.enemy) : [];
         playerController.update(enemies);
     }
 
@@ -273,15 +288,11 @@ function loop() {
         if (enemyControllers.length < maxEnemies && now - lastSpawnAt >= spawnInterval) {
             const availableSlots = maxEnemies - enemyControllers.length;
             const spawnCount = Math.min(spawnBatchSize, availableSlots);
-            for (let i = 0; i < spawnCount; i++) {
-                spawnEnemyNearPlayer();
-            }
+            for (let i = 0; i < spawnCount; i++) spawnEnemyNearPlayer();
             lastSpawnAt = now;
         }
 
-        for (const enemyController of enemyControllers) {
-            enemyController.update(playerController.player);
-        }
+        for (const ec of enemyControllers) ec.update(playerController.player);
 
         for (let i = enemyControllers.length - 1; i >= 0; i--) {
             if (enemyControllers[i].enemy.hp > 0) continue;
@@ -291,22 +302,15 @@ function loop() {
         }
     }
 
+    // UPDATE des PNJ (pas de draw ici !)
+    if (canUpdateWorld) {
+        for (const pnj of pnjControllers) pnj.update();
+    }
+
     if (playerController.player.level > lastProcessedLevel) {
-        const currentLevel = playerController.player.level;
-
-        for (let level = lastProcessedLevel + 1; level <= currentLevel; level++) {
-            if (level % 5 === 0) {
-                // Palier de niveau: proposer une competence seulement s'il y en a une a debloquer.
-                const skillQueued = playerController.queuePerkChoices(1, true, level);
-                if (!skillQueued) {
-                    playerController.queuePerkChoices(1, false, level);
-                }
-            } else {
-                playerController.queuePerkChoices(1, false, level);
-            }
-        }
-
-        lastProcessedLevel = currentLevel;
+        const gainedLevels = playerController.player.level - lastProcessedLevel;
+        playerController.queuePerkChoices(gainedLevels);
+        lastProcessedLevel = playerController.player.level;
     }
 
     const playerHitbox = getEntityHitbox(playerController.player);
@@ -319,14 +323,9 @@ function loop() {
 
     if (canUpdateWorld) {
         let touchingEnemy = false;
-        for (const enemyController of enemyControllers) {
-            const enemyHitbox = getEntityHitbox(enemyController.enemy);
-            if (isRectOverlap(playerHitbox, enemyHitbox)) {
-                touchingEnemy = true;
-                break;
-            }
+        for (const ec of enemyControllers) {
+            if (isRectOverlap(playerHitbox, getEntityHitbox(ec.enemy))) { touchingEnemy = true; break; }
         }
-
         if (touchingEnemy) {
             const now = performance.now();
             if (now - lastContactDamageAt >= DAMAGE_COOLDOWN_MS) {
@@ -343,38 +342,49 @@ function loop() {
             window.location.href = "ville.html";
             return;
         }
-
         playerController.player.x = playerController.player.spawnX;
         playerController.player.y = playerController.player.spawnY;
         playerController.player.hp = playerController.player.maxHp;
         lastContactDamageAt = performance.now();
     }
 
-    // Mettre à jour la caméra (centrer sur le joueur)
+    // CAMERA
     cameraController.centerOn(playerController.player.x, playerController.player.y);
 
+<<<<<<< HEAD
     // Nettoyer le canvas
     ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // FOND = MAP
+=======
+    // MAP
+>>>>>>> beb0f223a7952c8a0f8a546f72cf412ac8db6449
     mapRenderer.draw(cameraController.camera);
+     // PNJ
+        for (const pnj of pnjControllers) {
+            pnj.draw();
+        }
 
     // JOUEUR
     playerController.draw();
 
-    // EFFETS D'ATTAQUE (dessinés après le joueur, avant les ennemis)
+    // ATTAQUES
     playerController.drawAttacks();
 
-    // ENNEMI
+    // ENNEMIS
     for (const enemyController of enemyControllers) {
         enemyController.draw();
     }
 
+<<<<<<< HEAD
     if (window.drawCollidersOverlay) {
         window.drawCollidersOverlay(ctx, cameraController.camera, cameraController.camera.zoom);
     }
 
+=======
+    // HITBOX DEBUG
+>>>>>>> beb0f223a7952c8a0f8a546f72cf412ac8db6449
     if (SHOW_HITBOXES) {
         ctx.save();
         ctx.lineWidth = 2;
@@ -399,7 +409,7 @@ function loop() {
         ctx.restore();
     }
 
-    // HUD - Barre de vie (bas gauche)
+    // HUD (HP)
     const barX = uiStyles.hpOffsetLeft;
     const barY = canvas.height - uiStyles.hpOffsetBottom;
     const barWidth = uiStyles.hpBarWidth;
@@ -418,7 +428,7 @@ function loop() {
     ctx.fillStyle = uiStyles.hpFillColor;
     ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
 
-    // HUD - Barre d'expérience (haut centre)
+    // HUD (EXP)
     const expBarWidth = uiStyles.expBarWidth;
     const expBarHeight = uiStyles.expBarHeight;
     const expBarX = (canvas.width / 2) - (expBarWidth / 2);
@@ -443,7 +453,7 @@ function loop() {
     ctx.textBaseline = "middle";
     ctx.fillText(`level : ${playerController.player.level}`, canvas.width / 2, expBarY + expBarHeight / 2);
 
-    // HUD - Compteur de kills (haut droite)
+    // HUD (Kills)
     ctx.fillStyle = uiStyles.killTextColor;
     ctx.font = uiStyles.killFont;
     ctx.textAlign = "right";
@@ -549,4 +559,5 @@ function drawPerkOverlay(choices) {
 
     ctx.restore();
 }
+
 loop();
