@@ -28,11 +28,7 @@ function createPlayerController(canvas, ctx, camera) {
     let axeSourceRect = null;
     let axePivot = null;
 
-    const HURT_DURATION_MS = 250;
-    const hurtSprite = new Image();
-    hurtSprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier with shadows/Soldier-Hurt.png";
-    let hurtFrames = 1;
-    let hurtUntil = 0;
+
     const attackVisualScale = 1;
 
     hurtSprite.addEventListener("load", () => {
@@ -184,16 +180,6 @@ function createPlayerController(canvas, ctx, camera) {
         return angle;
     }
 
-   
-   function AxeSkill(Axe) {
-    
-   }
-   
-   
-   
-   
-   
-   
     function syncDerivedAttackVisualStats() {
         const rangeRatio = attackStats.range / BASE_ATTACK_STATS.range;
         const angleRatio = attackStats.halfAngle / BASE_ATTACK_STATS.halfAngle;
