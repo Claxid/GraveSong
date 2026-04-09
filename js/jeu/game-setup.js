@@ -80,7 +80,7 @@ function initGame() {
     console.log("✅ cameraController créé:", cameraController);
 
     console.log("✅ Création du playerController...");
-    playerController = createPlayerController(canvas, ctx, cameraController.camera);
+    playerController = createPlayerController(canvas, ctx, cameraController.camera, isMap1);
     console.log("✅ playerController créé:", playerController);
 
     lastProcessedLevel = playerController.player.level;

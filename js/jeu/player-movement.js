@@ -1,7 +1,7 @@
 // Contrôleur principal du joueur
 // Gestion du mouvement, collisions et rendu de base
 
-function createPlayerController(canvas, ctx, camera) {
+function createPlayerMovementController(canvas, ctx, camera) {
     const sprite = new Image();
     sprite.src = "../../assets/sprites/Characters(100x100)/Soldier/Soldier/Soldier-Walk.png";
 

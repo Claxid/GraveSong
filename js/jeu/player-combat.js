@@ -1,7 +1,7 @@
 // Système d'attaques du joueur
 // Gestion des attaques automatiques et de la hache
 
-function createPlayerAttacks(player, camera) {
+function createPlayerAttacks(player, camera, isMap1 = false) {
     const attackSprite = new Image();
     attackSprite.src = "../../assets/sprites/Characters(100x100)/Soldier/Soldier(Split Effects)/Soldier-Attack01_Effect.png";
     let attackEffectFrames = 6;
@@ -64,8 +64,8 @@ function createPlayerAttacks(player, camera) {
     function updateAttacks(enemies) {
         const now = performance.now();
 
-        // Attaque automatique
-        if (now - lastAttackTime >= attackStats.cooldown) {
+        // Attaque automatique seulement sur map1 et s'il y a des ennemis
+        if (isMap1 && enemies.length > 0 && now - lastAttackTime >= attackStats.cooldown) {
             const attackAngle = Math.random() * Math.PI * 2;
             attacks.push({
                 x: player.x,
@@ -107,8 +107,8 @@ function createPlayerAttacks(player, camera) {
             }
         }
 
-        // Update de la hache
-        if (axeState.active) {
+        // Update de la hache seulement sur map1 et s'il y a des ennemis
+        if (axeState.active && isMap1 && enemies.length > 0) {
             axeState.angle = normalizeAngle(axeState.angle + axeState.angularSpeed);
 
             const axeX = player.x + Math.cos(axeState.angle) * axeState.radius;
@@ -152,7 +152,7 @@ function createPlayerAttacks(player, camera) {
             ctx.restore();
         }
 
-        if (axeState.active) {
+        if (axeState.active && isMap1) {
             const axeX = (player.x + Math.cos(axeState.angle) * axeState.radius - camera.x) * camera.zoom;
             const axeY = (player.y + Math.sin(axeState.angle) * axeState.radius - camera.y) * camera.zoom;
             const axeSize = axeState.size * camera.zoom;
