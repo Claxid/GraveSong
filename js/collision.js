@@ -1,6 +1,3 @@
-// Analyse automatique de l'image de la ville pour générer des colliders de toits et de bordures
-// Les obstacles sont stockés dans window.obstacles et utilisés par le joueur/ennemis pour éviter les murs.
-
 window.obstacles = [];
 
 const MAP_IMAGE_SRC = "../assets/images/Ville.png";
@@ -70,7 +67,7 @@ function blockInternalHoles(mask, width, height) {
         }
     }
 }
-//serre a crée les rectangles de collision 
+
 function pixelsToRects(mask, width, height) {
     const visited = new Uint8ClampedArray(mask.length);
     const rects = [];
@@ -103,7 +100,7 @@ function pixelsToRects(mask, width, height) {
                     visited[idxAt(xx, yy, width)] = 1;
                 }
             }
-            //ajouter ractangle a la liste 
+
             rects.push({ x: startX, y: y, w: endX - startX + 1, h: endY - y + 1 });
         }
     }
@@ -178,6 +175,10 @@ function analyzeMapImage() {
         const rects = pixelsToRects(dilated, width, height);
 
         const bridgeClear = { x: 2250, y: 700, w: 100, h: 950 };
+        const bridgeSideBlocks = [
+            { x: 2238, y: 830, w: 34, h: 300 },
+            { x: 2310, y: 830, w: 40, h: 300 }
+        ];
         const filteredRects = rects
             .filter((r) => r.w >= 1 && r.h >= 1)
             .filter((o) => {
@@ -186,15 +187,15 @@ function analyzeMapImage() {
                 return !overlap;
             });
 
-
-        // bordure autour de MAP !!!! 
         filteredRects.unshift(
             { x: 0, y: 0, w: width, h: 16 },
             { x: 0, y: height - 16, w: width, h: 16 },
             { x: 0, y: 0, w: 16, h: height },
             { x: width - 16, y: 0, w: 16, h: height }
         );
-        // stocks les obstzcles 
+
+        filteredRects.push(...bridgeSideBlocks);
+
         window.obstacles = filteredRects;
 
         if (!window.obstacles.length) {
@@ -240,7 +241,7 @@ window.drawCollidersOverlay = function(ctx, camera, zoom = 1) {
         const sw = o.w * zoom;
         const sh = o.h * zoom;
         ctx.strokeRect(sx, sy, sw, sh);
-    }1
+    }
 
     ctx.restore();
 };

@@ -20,8 +20,10 @@ const enemyControllers = [];
 const potions = [];
 const potionSprite = new Image();
 potionSprite.src = "../assets/sprites/potion/healing_potion.png";
+const pnjControllers = [];
 
-const POTION_DROP_CHANCE = 0.003;
+const ORC_POTION_DROP_CHANCE = 0.05;
+const ORC3_POTION_DROP_CHANCE = 0.08;
 const POTION_HEAL_AMOUNT = 15;
 const SPAWN_RING_MIN = 500;
 const SPAWN_RING_MAX = 700;
@@ -38,6 +40,10 @@ const ENEMY_GROWTH_EVERY_MS = 20000;
 const ENEMIES_PER_GROWTH_STEP = 3;
 const ABSOLUTE_MAX_ENEMIES = 300;
 const ENEMY_KILL_EXP = 30;
+const ENEMY_SPAWN_WEIGHTS = [
+    { type: "orc", weight: 95 },
+    { type: "orc3", weight: 5 }
+];
 
 const CONTACT_DAMAGE = 5;
 const DAMAGE_COOLDOWN_MS = 500;
@@ -142,9 +148,29 @@ function getRandomSpawnAroundPlayer(player) {
     };
 }
 
+function pickWeightedEnemyType() {
+    const totalWeight = ENEMY_SPAWN_WEIGHTS.reduce((sum, entry) => sum + entry.weight, 0);
+    if (totalWeight <= 0) return "orc";
+
+    let roll = Math.random() * totalWeight;
+    for (const entry of ENEMY_SPAWN_WEIGHTS) {
+        roll -= entry.weight;
+        if (roll <= 0) {
+            return entry.type;
+        }
+    }
+
+    return ENEMY_SPAWN_WEIGHTS[ENEMY_SPAWN_WEIGHTS.length - 1].type;
+}
+
 function spawnEnemyNearPlayer() {
     const spawn = getRandomSpawnAroundPlayer(playerController.player);
-    enemyControllers.push(createEnemyController(canvas, ctx, cameraController.camera, spawn.x, spawn.y));
+    const enemyType = pickWeightedEnemyType();
+    enemyControllers.push(createEnemyController(canvas, ctx, cameraController.camera, spawn.x, spawn.y, enemyType));
+}
+
+function spawnPnj(x, y) {
+    pnjControllers.push(createpnjController(canvas, ctx, cameraController.camera, x, y));
 }
 
 function getMaxEnemyCount(now) {
@@ -179,6 +205,17 @@ for (let i = 0; i < INITIAL_ENEMY_COUNT; i++) {
     spawnEnemyNearPlayer();
 }
 
+// SPAWN DES PNJ statiques (uniquement dans la ville)
+if (isVilleMap) {
+    spawnPnj(1700, 2000);
+    spawnPnj(2200, 1250);
+    spawnPnj(2200, 2250);
+    spawnPnj(1975, 2500);
+    spawnPnj(1350, 2375);
+    spawnPnj(3150, 1225);
+    spawnPnj(2875, 2950);
+}
+
 window.addEventListener("keydown", (e) => {
     if (!playerController.hasPendingPerks()) return;
 
@@ -211,9 +248,7 @@ canvas.addEventListener("click", (e) => {
         if (!insideX || !insideY) continue;
 
         const applied = playerController.applyPerkByIndex(i);
-        if (applied) {
-            e.preventDefault();
-        }
+        if (applied) e.preventDefault();
         break;
     }
 });
@@ -240,12 +275,13 @@ window.addEventListener("resize", () => {
     uiStyles = readUiStyles();
 });
 
-// La boucle principale du jeu : update et draw à chaque frame.
+// Boucle du jeu
 function loop() {
     const canUpdateWorld = !playerController.hasPendingPerks();
 
+    // ── UPDATES ──────────────────────────────────────────
     if (canUpdateWorld) {
-        const enemies = isMap1 ? enemyControllers.map((controller) => controller.enemy) : [];
+        const enemies = isMap1 ? enemyControllers.map((c) => c.enemy) : [];
         playerController.update(enemies);
     }
 
@@ -258,15 +294,11 @@ function loop() {
         if (enemyControllers.length < maxEnemies && now - lastSpawnAt >= spawnInterval) {
             const availableSlots = maxEnemies - enemyControllers.length;
             const spawnCount = Math.min(spawnBatchSize, availableSlots);
-            for (let i = 0; i < spawnCount; i++) {
-                spawnEnemyNearPlayer();
-            }
+            for (let i = 0; i < spawnCount; i++) spawnEnemyNearPlayer();
             lastSpawnAt = now;
         }
 
-        for (const enemyController of enemyControllers) {
-            enemyController.update(playerController.player);
-        }
+        for (const ec of enemyControllers) ec.update(playerController.player);
 
         for (let i = enemyControllers.length - 1; i >= 0; i--) {
             if (enemyControllers[i].enemy.hp > 0) continue;
@@ -275,7 +307,11 @@ function loop() {
             const deadX = deadEnemy.x;
             const deadY = deadEnemy.y;
 
-            if (Math.random() < POTION_DROP_CHANCE) {
+            const potionDropChance = deadEnemy.type === "orc3"
+                ? ORC3_POTION_DROP_CHANCE
+                : ORC_POTION_DROP_CHANCE;
+
+            if (Math.random() < potionDropChance) {
                 potions.push({
                     x: deadX,
                     y: deadY,
@@ -290,6 +326,11 @@ function loop() {
             killCount += 1;
             givePlayerExp(ENEMY_KILL_EXP);
         }
+    }
+
+    // UPDATE des PNJ (pas de draw ici !)
+    if (canUpdateWorld) {
+        for (const pnj of pnjControllers) pnj.update();
     }
 
     if (playerController.player.level > lastProcessedLevel) {
@@ -328,18 +369,17 @@ function loop() {
 
     if (canUpdateWorld) {
         let touchingEnemy = false;
-        for (const enemyController of enemyControllers) {
-            const enemyHitbox = getEntityHitbox(enemyController.enemy);
-            if (isRectOverlap(playerHitbox, enemyHitbox)) {
-                touchingEnemy = true;
-                break;
-            }
+        let contactDamage = CONTACT_DAMAGE;
+        for (const ec of enemyControllers) {
+            if (!isRectOverlap(playerHitbox, getEntityHitbox(ec.enemy))) continue;
+            touchingEnemy = true;
+            contactDamage = Math.max(contactDamage, ec.enemy.contactDamage || CONTACT_DAMAGE);
         }
-
         if (touchingEnemy) {
             const now = performance.now();
             if (now - lastContactDamageAt >= DAMAGE_COOLDOWN_MS) {
-                playerController.player.hp = Math.max(0, playerController.player.hp - CONTACT_DAMAGE);
+                playerController.player.hp = Math.max(0, playerController.player.hp - contactDamage);
+                playerController.triggerHurt();
                 lastContactDamageAt = now;
             }
         }
@@ -351,23 +391,30 @@ function loop() {
             window.location.href = "ville.html";
             return;
         }
-
         playerController.player.x = playerController.player.spawnX;
         playerController.player.y = playerController.player.spawnY;
         playerController.player.hp = playerController.player.maxHp;
         lastContactDamageAt = performance.now();
     }
 
-    // Mettre à jour la caméra (centrer sur le joueur)
+    // CAMERA
     cameraController.centerOn(playerController.player.x, playerController.player.y);
+
+    // Nettoyer le canvas
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // FOND = MAP
     mapRenderer.draw(cameraController.camera);
+     // PNJ
+        for (const pnj of pnjControllers) {
+            pnj.draw();
+        }
 
     // JOUEUR
     playerController.draw();
 
-    // EFFETS D'ATTAQUE (dessinés après le joueur, avant les ennemis)
+    // ATTAQUES
     playerController.drawAttacks();
 
     // POTIONS (dessinees avant les ennemis => derriere eux)
@@ -390,8 +437,7 @@ function loop() {
         }
     }
 
-
-    // ENNEMI
+    // ENNEMIS
     for (const enemyController of enemyControllers) {
         enemyController.draw();
     }
@@ -423,6 +469,7 @@ function loop() {
 
         ctx.restore();
     }
+
     // HUD - Barre de vie (bas gauche)
     const barX = uiStyles.hpOffsetLeft;
     const barY = canvas.height - uiStyles.hpOffsetBottom;
@@ -473,7 +520,7 @@ function loop() {
     ctx.textBaseline = "middle";
     ctx.fillText(`level : ${playerController.player.level}`, canvas.width / 2, expBarY + expBarHeight / 2);
 
-    // HUD - Compteur de kills (haut droite)
+    // HUD (Kills)
     ctx.fillStyle = uiStyles.killTextColor;
     ctx.font = uiStyles.killFont;
     ctx.textAlign = "right";
@@ -579,4 +626,5 @@ function drawPerkOverlay(choices) {
 
     ctx.restore();
 }
+
 loop();
