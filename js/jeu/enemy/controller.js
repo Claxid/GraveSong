@@ -31,8 +31,11 @@ window.createEnemyController = function createEnemyController(canvas, ctx, camer
         const distance = Math.sqrt(dx * dx + dy * dy);
         if (distance === 0) return;
 
-        enemy.x += (dx / distance) * enemy.speed;
-        enemy.y += (dy / distance) * enemy.speed;
+        const multipliers = getEventMultipliers();
+        const currentSpeed = enemy.speed * multipliers.enemySpeed;
+
+        enemy.x += (dx / distance) * currentSpeed;
+        enemy.y += (dy / distance) * currentSpeed;
         enemy.animCounter++;
 
         if (enemy.animCounter >= enemy.animSpeed) {

@@ -53,8 +53,8 @@ function createPlayerMovementController(canvas, ctx, camera) {
         exp: 0,
         maxExp: 100,
         level: 1,
-        hitW: 40,
-        hitH: 60
+        hitW: 24,
+        hitH: 35
     };
 
     let facingLeft = false;

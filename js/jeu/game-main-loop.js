@@ -27,6 +27,11 @@ function loop() {
         playerController.update(enemies);
     }
 
+    // Mettre à jour les événements aléatoires
+    if (canUpdateWorld && isMap1) {
+        updateRandomEvents();
+    }
+
     if (canUpdateWorld && isMap1) {
         const now = performance.now();
         const maxEnemies = getMaxEnemyCount(now);
@@ -35,7 +40,9 @@ function loop() {
 
         if (enemyControllers.length < maxEnemies && now - lastSpawnAt >= spawnInterval) {
             const availableSlots = maxEnemies - enemyControllers.length;
-            const spawnCount = Math.min(spawnBatchSize, availableSlots);
+            const multipliers = typeof getEventMultipliers === 'function' ? getEventMultipliers() : { spawnRate: 1 };
+            const baseSpawnCount = Math.min(spawnBatchSize, availableSlots);
+            const spawnCount = Math.min(maxEnemies - enemyControllers.length, Math.ceil(baseSpawnCount * multipliers.spawnRate));
             for (let i = 0; i < spawnCount; i++) spawnEnemyNearPlayer();
             lastSpawnAt = now;
         }
@@ -131,6 +138,12 @@ function loop() {
 
     // HUD
     drawHUD();
+
+    // Effets d'événements
+    if (typeof drawEventEffects === 'function') drawEventEffects();
+
+    // Message d'événement
+    if (typeof drawEventMessage === 'function') drawEventMessage();
 
     // HITBOXES (debug)
     drawHitboxes(playerHitbox);
