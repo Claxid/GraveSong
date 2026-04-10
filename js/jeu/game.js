@@ -33,6 +33,7 @@ const ENEMY_GROWTH_EVERY_MS = 20000;
 const ENEMIES_PER_GROWTH_STEP = 3;
 const ABSOLUTE_MAX_ENEMIES = 300;
 const ENEMY_KILL_EXP = 30;
+const BOSS_SPAWN_DELAY_MS = 5 * 60 * 1000;
 
 const CONTACT_DAMAGE = 5;
 const DAMAGE_COOLDOWN_MS = 500;
@@ -51,6 +52,8 @@ let lastProcessedLevel = playerController.player.level;
 let gameStartAt = performance.now();
 let lastSpawnAt = gameStartAt;
 let killCount = 0;
+let bossSpawned = false;
+let bossDefeated = false;
 
 function getCssVar(name, fallback) {
     const value = getComputedStyle(canvas).getPropertyValue(name).trim();
@@ -86,6 +89,11 @@ function readUiStyles() {
         killFont: getCssVar("--hud-kill-font", "bold 20px Arial"),
         killOffsetRight: getCssNumber("--hud-kill-offset-right", 20),
         killOffsetTop: getCssNumber("--hud-kill-offset-top", 20),
+
+        timerTextColor: getCssVar("--hud-timer-text-color", "#fff"),
+        timerFont: getCssVar("--hud-timer-font", "bold 18px Arial"),
+        timerOffsetRight: getCssNumber("--hud-timer-offset-right", 20),
+        timerOffsetTop: getCssNumber("--hud-timer-offset-top", 50),
 
         hitboxPlayerColor: getCssVar("--hitbox-player-color", "#00ff00"),
         hitboxEnemyColor: getCssVar("--hitbox-enemy-color", "#ff0000"),
@@ -123,6 +131,13 @@ function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
 }
 
+function formatElapsedTime(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
 function getRandomSpawnAroundPlayer(player) {
     const angle = Math.random() * Math.PI * 2;
     const radius = SPAWN_RING_MIN + Math.random() * (SPAWN_RING_MAX - SPAWN_RING_MIN);
@@ -140,6 +155,174 @@ function getRandomSpawnAroundPlayer(player) {
 function spawnEnemyNearPlayer() {
     const spawn = getRandomSpawnAroundPlayer(playerController.player);
     enemyControllers.push(createEnemyController(canvas, ctx, cameraController.camera, spawn.x, spawn.y));
+}
+
+function createBossController(startX, startY) {
+    function normalizeAngle(angle) {
+        while (angle > Math.PI) angle -= Math.PI * 2;
+        while (angle < -Math.PI) angle += Math.PI * 2;
+        return angle;
+    }
+
+    function loadFrames(folder, prefix, count) {
+        const frames = [];
+        for (let i = 1; i <= count; i++) {
+            const frame = new Image();
+            frame.src = `../assets/sprites/mino_v1.1_free/animations/${folder}/${prefix}_${i}.png`;
+            frames.push(frame);
+        }
+        return frames;
+    }
+
+    const frames = {
+        idle: loadFrames("idle", "idle", 16),
+        walk: loadFrames("walk", "walk", 12),
+        atk: loadFrames("atk_1", "atk_1", 16)
+    };
+
+    const enemy = {
+        spawnX: startX,
+        spawnY: startY,
+        x: startX,
+        y: startY,
+        speed: 1.05,
+        hp: 750,
+        maxhp: 750,
+        isBoss: true,
+        hitW: 90,
+        hitH: 90,
+        state: "walk",
+        frameIndex: 0,
+        animCounter: 0,
+        animSpeed: 8,
+        facingAngle: 0,
+        attackRange: 230,
+        attackHalfAngle: Math.PI / 4,
+        attackDamage: 20,
+        attackCooldownMs: 1500,
+        attackWindupMs: 800,
+        attackDurationMs: 1300,
+        lastAttackAt: 0,
+        isAttacking: false,
+        attackStartedAt: 0,
+        attackHitApplied: false,
+        lockedAttackAngle: 0
+    };
+
+    function isPlayerInAttackCone(player) {
+        const dx = player.x - enemy.x;
+        const dy = player.y - enemy.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance > enemy.attackRange) return false;
+
+        const angleToPlayer = Math.atan2(dy, dx);
+        const delta = Math.abs(normalizeAngle(angleToPlayer - enemy.lockedAttackAngle));
+        return delta <= enemy.attackHalfAngle;
+    }
+
+    function update(player) {
+        if (enemy.hp <= 0) return;
+
+        const previousState = enemy.state;
+
+        const dx = player.x - enemy.x;
+        const dy = player.y - enemy.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance > 0 && !enemy.isAttacking) {
+            enemy.facingAngle = Math.atan2(dy, dx);
+        }
+
+        const now = performance.now();
+        if (enemy.isAttacking) {
+            enemy.state = "atk";
+            const attackElapsed = now - enemy.attackStartedAt;
+
+            if (!enemy.attackHitApplied && attackElapsed >= enemy.attackWindupMs) {
+                if (isPlayerInAttackCone(player)) {
+                    player.hp = Math.max(0, player.hp - enemy.attackDamage);
+                }
+                enemy.attackHitApplied = true;
+            }
+
+            if (attackElapsed >= enemy.attackDurationMs) {
+                enemy.isAttacking = false;
+                enemy.lastAttackAt = now;
+                enemy.state = distance > 120 ? "walk" : "idle";
+            }
+        } else {
+            const canStartAttack = distance <= enemy.attackRange && now - enemy.lastAttackAt >= enemy.attackCooldownMs;
+            if (canStartAttack) {
+                enemy.isAttacking = true;
+                enemy.state = "atk";
+                enemy.attackStartedAt = now;
+                enemy.attackHitApplied = false;
+                enemy.lockedAttackAngle = enemy.facingAngle;
+                enemy.frameIndex = 0;
+                enemy.animCounter = 0;
+            } else if (distance > 120) {
+                enemy.state = "walk";
+                if (distance > 0) {
+                    enemy.x += (dx / distance) * enemy.speed;
+                    enemy.y += (dy / distance) * enemy.speed;
+                }
+            } else {
+                enemy.state = "idle";
+            }
+        }
+
+        if (enemy.state !== previousState) {
+            enemy.frameIndex = 0;
+            enemy.animCounter = 0;
+        }
+
+        enemy.animCounter++;
+        if (enemy.animCounter >= enemy.animSpeed) {
+            enemy.animCounter = 0;
+            const currentFrames = frames[enemy.state];
+            enemy.frameIndex = (enemy.frameIndex + 1) % currentFrames.length;
+        }
+    }
+
+    function draw() {
+        const currentFrames = frames[enemy.state];
+        const sprite = currentFrames[enemy.frameIndex] || currentFrames[0];
+        if (!sprite) return;
+        const size = 330 * cameraController.camera.zoom;
+        const centerX = (enemy.x - cameraController.camera.x) * cameraController.camera.zoom;
+        const centerY = (enemy.y - cameraController.camera.y) * cameraController.camera.zoom;
+
+        if (enemy.isAttacking) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.arc(
+                centerX,
+                centerY,
+                enemy.attackRange * cameraController.camera.zoom,
+                enemy.lockedAttackAngle - enemy.attackHalfAngle,
+                enemy.lockedAttackAngle + enemy.attackHalfAngle
+            );
+            ctx.closePath();
+            ctx.fillStyle = enemy.attackHitApplied ? "rgba(220, 40, 40, 0.18)" : "rgba(255, 60, 60, 0.3)";
+            ctx.fill();
+            ctx.strokeStyle = "rgba(255, 100, 100, 0.8)";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        const drawX = (enemy.x - cameraController.camera.x) * cameraController.camera.zoom - size / 2;
+        const drawY = (enemy.y - cameraController.camera.y) * cameraController.camera.zoom - size / 2;
+        ctx.drawImage(sprite, drawX, drawY, size, size);
+    }
+
+    return { enemy, update, draw };
+}
+
+function spawnBossNearPlayer() {
+    const spawn = getRandomSpawnAroundPlayer(playerController.player);
+    enemyControllers.push(createBossController(spawn.x, spawn.y));
 }
 
 function getMaxEnemyCount(now) {
@@ -246,11 +429,22 @@ function loop() {
 
     if (canUpdateWorld && isMap1) {
         const now = performance.now();
+
+        if (!bossSpawned && !bossDefeated && now - gameStartAt >= BOSS_SPAWN_DELAY_MS) {
+            spawnBossNearPlayer();
+            bossSpawned = true;
+
+            for (let i = enemyControllers.length - 1; i >= 0; i--) {
+                if (enemyControllers[i].enemy.isBoss) continue;
+                enemyControllers.splice(i, 1);
+            }
+        }
+
         const maxEnemies = getMaxEnemyCount(now);
         const spawnInterval = getSpawnInterval(now);
         const spawnBatchSize = getSpawnBatchSize(now);
 
-        if (enemyControllers.length < maxEnemies && now - lastSpawnAt >= spawnInterval) {
+        if (!bossSpawned && enemyControllers.length < maxEnemies && now - lastSpawnAt >= spawnInterval) {
             const availableSlots = maxEnemies - enemyControllers.length;
             const spawnCount = Math.min(spawnBatchSize, availableSlots);
             for (let i = 0; i < spawnCount; i++) {
@@ -263,11 +457,21 @@ function loop() {
             enemyController.update(playerController.player);
         }
 
+        let bossDiedThisFrame = false;
         for (let i = enemyControllers.length - 1; i >= 0; i--) {
             if (enemyControllers[i].enemy.hp > 0) continue;
+            if (enemyControllers[i].enemy.isBoss) {
+                bossDiedThisFrame = true;
+            }
             enemyControllers.splice(i, 1);
             killCount += 1;
             givePlayerExp(ENEMY_KILL_EXP);
+        }
+
+        if (bossDiedThisFrame) {
+            bossSpawned = false;
+            bossDefeated = true;
+            lastSpawnAt = now;
         }
     }
 
@@ -288,6 +492,7 @@ function loop() {
     if (canUpdateWorld) {
         let touchingEnemy = false;
         for (const enemyController of enemyControllers) {
+            if (enemyController.enemy.isBoss) continue;
             const enemyHitbox = getEntityHitbox(enemyController.enemy);
             if (isRectOverlap(playerHitbox, enemyHitbox)) {
                 touchingEnemy = true;
@@ -418,6 +623,15 @@ function loop() {
     ctx.textAlign = "right";
     ctx.textBaseline = "top";
     ctx.fillText(`Kills : ${killCount}`, canvas.width - uiStyles.killOffsetRight, uiStyles.killOffsetTop);
+
+    if (isMap1) {
+        const elapsedTime = formatElapsedTime(performance.now() - gameStartAt);
+        ctx.fillStyle = uiStyles.timerTextColor;
+        ctx.font = uiStyles.timerFont;
+        ctx.textAlign = "right";
+        ctx.textBaseline = "top";
+        ctx.fillText(`Temps : ${elapsedTime}`, canvas.width - uiStyles.timerOffsetRight, uiStyles.timerOffsetTop);
+    }
 
     const perkChoices = playerController.getCurrentPerkChoices();
     if (perkChoices) {
