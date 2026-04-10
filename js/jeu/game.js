@@ -25,8 +25,8 @@ const potionSprite = new Image();
 potionSprite.src = "../assets/sprites/potion/healing_potion.png";
 const pnjControllers = [];
 
-const ORC_POTION_DROP_CHANCE = 0.05;
-const ORC3_POTION_DROP_CHANCE = 0.08;
+const ORC_POTION_DROP_CHANCE = 0.02;
+const ORC3_POTION_DROP_CHANCE = 0.04;
 const POTION_HEAL_AMOUNT = 15;
 const SPAWN_RING_MIN = 500;
 const SPAWN_RING_MAX = 700;
@@ -220,8 +220,8 @@ function createBossController(startX, startY) {
         x: startX,
         y: startY,
         speed: 1.05,
-        hp: 750,
-        maxhp: 750,
+        hp: 1750,
+        maxhp: 1750,
         isBoss: true,
         hitW: 90,
         hitH: 90,
@@ -232,9 +232,9 @@ function createBossController(startX, startY) {
         facingAngle: 0,
         attackRange: 230,
         attackHalfAngle: Math.PI / 4,
-        attackDamage: 20,
+        attackDamage: 35,
         attackCooldownMs: 1500,
-        attackWindupMs: 800,
+        attackWindupMs: 700,
         attackDurationMs: 1300,
         lastAttackAt: 0,
         isAttacking: false,
