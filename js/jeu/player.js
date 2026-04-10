@@ -1,7 +1,7 @@
 // Controleur du joueur
 // Deplacement ZQSD avec collisions, auto-attaque et systeme de perks.
 
-function createPlayerController(canvas, ctx, camera) {
+function createPlayerController(canvas, ctx, camera, worldBounds = null) {
     const sprite = new Image();
     sprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier/Soldier-Walk.png";
 
@@ -303,6 +303,26 @@ function createPlayerController(canvas, ctx, camera) {
         return false;
     }
 
+    function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    function clampToWorldBounds(nextX, nextY) {
+        if (!worldBounds || !Number.isFinite(worldBounds.width) || !Number.isFinite(worldBounds.height)) {
+            return { x: nextX, y: nextY };
+        }
+
+        const minX = player.hitW / 2;
+        const maxX = worldBounds.width - player.hitW / 2;
+        const minY = player.hitH / 2;
+        const maxY = worldBounds.height - player.hitH / 2;
+
+        return {
+            x: clamp(nextX, minX, maxX),
+            y: clamp(nextY, minY, maxY)
+        };
+    }
+
     function update(enemies = []) {
         let moving = false;
         let moveX = 0;
@@ -333,12 +353,13 @@ function createPlayerController(canvas, ctx, camera) {
 
         const nextX = player.x + moveX;
         const nextY = player.y + moveY;
+        const boundedNext = clampToWorldBounds(nextX, nextY);
 
-        if (!collidesAt(nextX, player.y)) {
-            player.x = nextX;
+        if (!collidesAt(boundedNext.x, player.y)) {
+            player.x = boundedNext.x;
         }
-        if (!collidesAt(player.x, nextY)) {
-            player.y = nextY;
+        if (!collidesAt(player.x, boundedNext.y)) {
+            player.y = boundedNext.y;
         }
 
         if (moving) {

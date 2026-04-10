@@ -15,7 +15,10 @@ resizeCanvas();
 // Je crée les contrôleurs pour la map, la caméra, le joueur et l'ennemi.
 const mapRenderer = createMapRenderer(canvas, ctx);
 const cameraController = createCameraController(canvas, mapRenderer.MAP_WIDTH, mapRenderer.MAP_HEIGHT);
-const playerController = createPlayerController(canvas, ctx, cameraController.camera);
+const playerController = createPlayerController(canvas, ctx, cameraController.camera, {
+    width: mapRenderer.MAP_WIDTH,
+    height: mapRenderer.MAP_HEIGHT
+});
 const enemyControllers = [];
 const pnjControllers = [];
 
