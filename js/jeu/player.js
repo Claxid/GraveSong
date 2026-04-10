@@ -1,7 +1,7 @@
 // Controleur du joueur
 // Deplacement ZQSD avec collisions, auto-attaque et systeme de perks.
 
-function createPlayerController(canvas, ctx, camera) {
+function createPlayerController(canvas, ctx, camera, worldBounds = null) {
     const sprite = new Image();
     sprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier/Soldier-Walk.png";
 
@@ -16,6 +16,15 @@ function createPlayerController(canvas, ctx, camera) {
     axeSprite.src = "../assets/sprites/axe.png";
     let axeSourceRect = null;
     let axePivot = null;
+
+    const fireballSprite = new Image();
+    fireballSprite.src = "../assets/sprites/Fireball/fireball_0.png";
+    const fireballExplosionSprite = new Image();
+    fireballExplosionSprite.src = "../assets/sprites/Fireball/toppng.com-explosion-sprite-png-2d-explosion-sprite-sheet-899x857.png";
+    let fireballProcessedSprite = null;
+    let explosionProcessedSprite = null;
+    let fireballSkinRects = [];
+    let explosionSkinRects = [];
 
     const HURT_DURATION_MS = 250;
     const hurtSprite = new Image();
@@ -86,7 +95,8 @@ function createPlayerController(canvas, ctx, camera) {
         sizeMultiplier: 3,
         range: 220,
         halfAngle: Math.PI / 3,
-        Axe: 0
+        Axe: 0,
+        Fireball: 0
     };
     const attackStats = { ...BASE_ATTACK_STATS };
 
@@ -103,6 +113,142 @@ function createPlayerController(canvas, ctx, camera) {
         size: 60,
         lastHitByEnemy: new Map()
     };
+
+    const fireballState = {
+        active: false,
+        count: 0,
+        cooldown: 3000,
+        speed: 4.5,
+        damageMultiplier: 1.6,
+        size: 44,
+        hitRadius: 20,
+        maxTravel: 1000,
+        lastCastAt: 0,
+        skinFrames: 2,
+        skinAnimSpeed: 5,
+        explosionSize: 96,
+        explosionAnimSpeed: 5,
+        explosionFramesToUse: 2,
+        explosionCols: 7,
+        explosionRows: 7
+    };
+
+    const fireballs = [];
+    const fireballExplosions = [];
+
+    function extractSpriteRectsFromSheet(image, { removeNearBlack = true, maxRects = 2, minArea = 24 } = {}) {
+        const canvasProbe = document.createElement("canvas");
+        canvasProbe.width = image.naturalWidth;
+        canvasProbe.height = image.naturalHeight;
+        const probeCtx = canvasProbe.getContext("2d", { willReadFrequently: true });
+        if (!probeCtx) return { canvas: null, rects: [] };
+
+        probeCtx.drawImage(image, 0, 0);
+        const imageData = probeCtx.getImageData(0, 0, canvasProbe.width, canvasProbe.height);
+        const data = imageData.data;
+        const width = canvasProbe.width;
+        const height = canvasProbe.height;
+
+        const mask = new Uint8Array(width * height);
+
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const idx = (y * width + x) * 4;
+                const r = data[idx];
+                const g = data[idx + 1];
+                const b = data[idx + 2];
+                const a = data[idx + 3];
+
+                const isNearBlack = removeNearBlack && (r < 26 && g < 26 && b < 26);
+                if (a < 20 || isNearBlack) {
+                    data[idx + 3] = 0;
+                    continue;
+                }
+                mask[y * width + x] = 1;
+            }
+        }
+
+        probeCtx.putImageData(imageData, 0, 0);
+
+        const visited = new Uint8Array(width * height);
+        const rects = [];
+
+        const neighbors = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const start = y * width + x;
+                if (!mask[start] || visited[start]) continue;
+
+                let minX = x;
+                let minY = y;
+                let maxX = x;
+                let maxY = y;
+                let pixelCount = 0;
+
+                const queue = [start];
+                visited[start] = 1;
+
+                while (queue.length > 0) {
+                    const current = queue.pop();
+                    const cx = current % width;
+                    const cy = Math.floor(current / width);
+                    pixelCount++;
+
+                    if (cx < minX) minX = cx;
+                    if (cy < minY) minY = cy;
+                    if (cx > maxX) maxX = cx;
+                    if (cy > maxY) maxY = cy;
+
+                    for (const [dx, dy] of neighbors) {
+                        const nx = cx + dx;
+                        const ny = cy + dy;
+                        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+                        const ni = ny * width + nx;
+                        if (!mask[ni] || visited[ni]) continue;
+                        visited[ni] = 1;
+                        queue.push(ni);
+                    }
+                }
+
+                if (pixelCount < minArea) continue;
+                const pad = 1;
+                const sx = Math.max(0, minX - pad);
+                const sy = Math.max(0, minY - pad);
+                const sw = Math.min(width - sx, (maxX - minX + 1) + pad * 2);
+                const sh = Math.min(height - sy, (maxY - minY + 1) + pad * 2);
+                rects.push({ sx, sy, sw, sh, area: pixelCount });
+            }
+        }
+
+        // Keep only first visual elements from top-left to bottom-right.
+        rects.sort((a, b) => (a.sy - b.sy) || (a.sx - b.sx));
+        return {
+            canvas: canvasProbe,
+            rects: rects.slice(0, Math.max(1, maxRects)).map((r) => ({ sx: r.sx, sy: r.sy, sw: r.sw, sh: r.sh }))
+        };
+    }
+
+    fireballSprite.addEventListener("load", () => {
+        try {
+            const extracted = extractSpriteRectsFromSheet(fireballSprite, { removeNearBlack: true, maxRects: 2, minArea: 40 });
+            fireballProcessedSprite = extracted.canvas;
+            fireballSkinRects = extracted.rects;
+        } catch (_err) {
+            fireballProcessedSprite = null;
+            fireballSkinRects = [];
+        }
+    });
+
+    fireballExplosionSprite.addEventListener("load", () => {
+        try {
+            const extracted = extractSpriteRectsFromSheet(fireballExplosionSprite, { removeNearBlack: true, maxRects: 2, minArea: 140 });
+            explosionProcessedSprite = extracted.canvas;
+            explosionSkinRects = extracted.rects;
+        } catch (_err) {
+            explosionProcessedSprite = null;
+            explosionSkinRects = [];
+        }
+    });
 
     axeSprite.addEventListener("load", () => {
         try {
@@ -206,24 +352,25 @@ function createPlayerController(canvas, ctx, camera) {
 
     const AXE_PERK_ID = "Axe";
     const AXE_UNLOCK_LEVEL = 5;
+    const FIREBALL_UNLOCK_PERK_ID = "fireball_unlock";
+    const FIREBALL_COUNT_PERK_ID = "fireball_count_up";
+    const FIREBALL_COOLDOWN_PERK_ID = "fireball_cooldown_down";
+    const FIREBALL_UNLOCK_LEVEL = 6;
+    const SKILL_PERK_IDS = new Set([AXE_PERK_ID, FIREBALL_UNLOCK_PERK_ID, FIREBALL_COUNT_PERK_ID, FIREBALL_COOLDOWN_PERK_ID]);
 
-    function getAxeSpawnChance(level) {
-        if (level < AXE_UNLOCK_LEVEL) return 0;
-        if (level === AXE_UNLOCK_LEVEL) return 1;
-
-        // Progressive spawn chance after level 5.
-        const baseChance = 0.05;
-        const growthPerLevel = 0.01;
-        const maxChance = 0.20;
-        return Math.min(maxChance, baseChance + (level - AXE_UNLOCK_LEVEL) * growthPerLevel);
+    function isFireballUnlocked() {
+        return (Number(attackStats.Fireball) || 0) > 0;
     }
 
     const perkPool = [
-        { id: "damage_up", name: "+25% Degats", description: "Vos attaques frappent plus fort.", apply: (s) => { s.damage = Math.round(s.damage * 1.25); } },
-        { id: "cooldown_down", name: "-20% Cooldown", description: "Vous attaquez plus souvent.", apply: (s) => { s.cooldown = Math.max(250, Math.round(s.cooldown * 0.8)); } },
-        { id: "range_up", name: "+20% Portee", description: "Vous touchez de plus loin.", apply: (s) => { s.range = Math.round(s.range * 1.2); } },
-        { id: "arc_up", name: "+15° Angle", description: "Votre attaque devient plus large.", apply: (s) => { s.halfAngle = Math.min(Math.PI, s.halfAngle + (Math.PI / 12)); } },
-        { id: "Axe", name: "+1 hache", description: "Vous gagnez une puissante hache.", apply: (s) => { s.Axe = (Number(s.Axe) || 0) + 1; } }
+        { id: "damage_up", name: "+25% Degats", description: "Vos attaques frappent plus fort.", apply: ({ attackStats: s }) => { s.damage = Math.round(s.damage * 1.25); } },
+        { id: "cooldown_down", name: "-20% Cooldown", description: "Vous attaquez plus souvent.", apply: ({ attackStats: s }) => { s.cooldown = Math.max(250, Math.round(s.cooldown * 0.8)); } },
+        { id: "range_up", name: "+20% Portee", description: "Vous touchez de plus loin.", apply: ({ attackStats: s }) => { s.range = Math.round(s.range * 1.2); } },
+        { id: "arc_up", name: "+15° Angle", description: "Votre attaque devient plus large.", apply: ({ attackStats: s }) => { s.halfAngle = Math.min(Math.PI, s.halfAngle + (Math.PI / 12)); } },
+        { id: "Axe", name: "+1 hache", description: "Vous gagnez une puissante hache.", apply: ({ attackStats: s }) => { s.Axe = (Number(s.Axe) || 0) + 1; } },
+        { id: FIREBALL_UNLOCK_PERK_ID, name: "Fireball", description: "Vous lancez des fireballs.", apply: ({ attackStats: s }) => { s.Fireball = Math.max(1, (Number(s.Fireball) || 0) + 1); } },
+        { id: FIREBALL_COUNT_PERK_ID, name: "+1 fireball", description: "Lance une fireball supplementaire.", apply: ({ attackStats: s }) => { s.Fireball = (Number(s.Fireball) || 0) + 1; } },
+        { id: FIREBALL_COOLDOWN_PERK_ID, name: "-20% de cooldown fireball", description: "Les fireballs sont lancees plus souvent.", apply: ({ fireballState: f }) => { f.cooldown = Math.max(400, Math.round(f.cooldown * 0.8)); } }
         
 
     ];
@@ -231,27 +378,34 @@ function createPlayerController(canvas, ctx, camera) {
     const pendingPerkChoices = [];
 
     function pickRandomPerks(count, forLevel = player.level) {
-        const regularPerks = perkPool.filter((perk) => perk.id !== AXE_PERK_ID);
-        const shuffled = regularPerks.slice();
+        // Level 5: skill perks only, with both base skills available.
+        if (forLevel === AXE_UNLOCK_LEVEL) {
+            const axePerk = perkPool.find((perk) => perk.id === AXE_PERK_ID);
+            const fireballPerk = perkPool.find((perk) => perk.id === FIREBALL_UNLOCK_PERK_ID);
+            const level5Choices = [axePerk, fireballPerk].filter(Boolean);
+            return level5Choices.map((perk) => ({ id: perk.id, name: perk.name, description: perk.description }));
+        }
+
+        const regularPerks = perkPool.filter((perk) => {
+            if (perk.id === AXE_PERK_ID && forLevel < AXE_UNLOCK_LEVEL) return false;
+            if (perk.id === FIREBALL_UNLOCK_PERK_ID && forLevel < FIREBALL_UNLOCK_LEVEL) return false;
+            if (perk.id === FIREBALL_UNLOCK_PERK_ID && isFireballUnlocked()) return false;
+            if ((perk.id === FIREBALL_COUNT_PERK_ID || perk.id === FIREBALL_COOLDOWN_PERK_ID) && !isFireballUnlocked()) return false;
+            return true;
+        });
+
+        // Level 5 should only contain skill perks by design; other levels use equal chance for all eligible perks.
+        const eligiblePerks = forLevel === AXE_UNLOCK_LEVEL
+            ? regularPerks.filter((perk) => SKILL_PERK_IDS.has(perk.id))
+            : regularPerks;
+
+        const shuffled = eligiblePerks.slice();
         for (let i = shuffled.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
         }
 
         const selected = shuffled.slice(0, Math.min(count, shuffled.length));
-
-        const axeChance = getAxeSpawnChance(forLevel);
-        if (Math.random() < axeChance) {
-            const axePerk = perkPool.find((perk) => perk.id === AXE_PERK_ID);
-            if (axePerk) {
-                if (selected.length < count) {
-                    selected.push(axePerk);
-                } else if (selected.length > 0) {
-                    const replaceIdx = Math.floor(Math.random() * selected.length);
-                    selected[replaceIdx] = axePerk;
-                }
-            }
-        }
 
         return selected.map((perk) => ({
             id: perk.id,
@@ -284,11 +438,38 @@ function createPlayerController(canvas, ctx, camera) {
         if (!choice) return null;
         const perk = perkPool.find((p) => p.id === choice.id);
         if (!perk) return null;
-        perk.apply(attackStats);
+        perk.apply({ attackStats, fireballState });
         axeState.count = Math.max(0, Number(attackStats.Axe) || 0);
         axeState.active = axeState.count > 0;
+        fireballState.count = Math.max(0, Number(attackStats.Fireball) || 0);
+        fireballState.active = fireballState.count > 0;
         syncDerivedAttackVisualStats();
         return choice.id;
+    }
+
+    function spawnFireballExplosion(x, y) {
+        fireballExplosions.push({
+            x,
+            y,
+            frame: 0,
+            animCounter: 0
+        });
+    }
+
+    function getNearestEnemies(enemies, sourceX, sourceY, maxTargets) {
+        return enemies
+            .filter((enemy) => enemy && enemy.hp > 0)
+            .map((enemy) => {
+                const dx = enemy.x - sourceX;
+                const dy = enemy.y - sourceY;
+                return {
+                    enemy,
+                    dist: Math.sqrt(dx * dx + dy * dy)
+                };
+            })
+            .sort((a, b) => a.dist - b.dist)
+            .slice(0, maxTargets)
+            .map((entry) => entry.enemy);
     }
 
     function collidesAt(x, y) {
@@ -301,6 +482,26 @@ function createPlayerController(canvas, ctx, camera) {
             }
         }
         return false;
+    }
+
+    function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    function clampToWorldBounds(nextX, nextY) {
+        if (!worldBounds || !Number.isFinite(worldBounds.width) || !Number.isFinite(worldBounds.height)) {
+            return { x: nextX, y: nextY };
+        }
+
+        const minX = player.hitW / 2;
+        const maxX = worldBounds.width - player.hitW / 2;
+        const minY = player.hitH / 2;
+        const maxY = worldBounds.height - player.hitH / 2;
+
+        return {
+            x: clamp(nextX, minX, maxX),
+            y: clamp(nextY, minY, maxY)
+        };
     }
 
     function update(enemies = []) {
@@ -333,12 +534,13 @@ function createPlayerController(canvas, ctx, camera) {
 
         const nextX = player.x + moveX;
         const nextY = player.y + moveY;
+        const boundedNext = clampToWorldBounds(nextX, nextY);
 
-        if (!collidesAt(nextX, player.y)) {
-            player.x = nextX;
+        if (!collidesAt(boundedNext.x, player.y)) {
+            player.x = boundedNext.x;
         }
-        if (!collidesAt(player.x, nextY)) {
-            player.y = nextY;
+        if (!collidesAt(player.x, boundedNext.y)) {
+            player.y = boundedNext.y;
         }
 
         if (moving) {
@@ -405,6 +607,87 @@ function createPlayerController(canvas, ctx, camera) {
                     enemy.hp = Math.max(0, enemy.hp - appliedAxeDamage);
                     axeState.lastHitByEnemy.set(cooldownKey, now);
                 }
+            }
+        }
+
+        if (fireballState.active && enemies.length > 0 && now - fireballState.lastCastAt >= fireballState.cooldown) {
+            const fireballCount = Math.max(1, Math.min(6, fireballState.count));
+            const targets = getNearestEnemies(enemies, player.x, player.y, fireballCount);
+
+            for (const target of targets) {
+                const dx = target.x - player.x;
+                const dy = target.y - player.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance <= 0.0001) continue;
+
+                const vx = (dx / distance) * fireballState.speed;
+                const vy = (dy / distance) * fireballState.speed;
+
+                fireballs.push({
+                    x: player.x,
+                    y: player.y,
+                    vx,
+                    vy,
+                    frameX: Math.floor(Math.random() * Math.max(1, fireballState.skinFrames)),
+                    animCounter: 0,
+                    traveled: 0
+                });
+            }
+
+            if (targets.length > 0) {
+                fireballState.lastCastAt = now;
+            }
+        }
+
+        const fireballDamage = Math.max(1, Math.round(attackStats.damage * fireballState.damageMultiplier));
+
+        for (let i = fireballs.length - 1; i >= 0; i--) {
+            const fireball = fireballs[i];
+            fireball.x += fireball.vx;
+            fireball.y += fireball.vy;
+            fireball.traveled += Math.sqrt(fireball.vx * fireball.vx + fireball.vy * fireball.vy);
+
+            fireball.animCounter++;
+            if (fireball.animCounter >= fireballState.skinAnimSpeed) {
+                fireball.animCounter = 0;
+                fireball.frameX = (fireball.frameX + 1) % Math.max(1, fireballState.skinFrames);
+            }
+
+            let hit = false;
+            for (const enemy of enemies) {
+                if (!enemy || enemy.hp <= 0) continue;
+
+                const dx = enemy.x - fireball.x;
+                const dy = enemy.y - fireball.y;
+                const enemyRadius = Math.max(enemy.hitW, enemy.hitH) / 2;
+                const hitDistance = fireballState.hitRadius + enemyRadius;
+
+                if ((dx * dx + dy * dy) > hitDistance * hitDistance) continue;
+
+                const appliedFireballDamage = enemy.type === "orc" ? enemy.hp : fireballDamage;
+                enemy.hp = Math.max(0, enemy.hp - appliedFireballDamage);
+                spawnFireballExplosion(fireball.x, fireball.y);
+                hit = true;
+                break;
+            }
+
+            if (hit || fireball.traveled >= fireballState.maxTravel) {
+                fireballs.splice(i, 1);
+            }
+        }
+
+        const explosionTotalFrames = Math.max(1, fireballState.explosionFramesToUse);
+        for (let i = fireballExplosions.length - 1; i >= 0; i--) {
+            const explosion = fireballExplosions[i];
+            explosion.animCounter++;
+
+            if (explosion.animCounter >= fireballState.explosionAnimSpeed) {
+                explosion.animCounter = 0;
+                explosion.frame++;
+            }
+
+            if (explosion.frame >= explosionTotalFrames) {
+                fireballExplosions.splice(i, 1);
             }
         }
 
@@ -527,6 +810,85 @@ function createPlayerController(canvas, ctx, camera) {
                     );
                 }
                 ctx.restore();
+            }
+        }
+
+        if (fireballState.active) {
+            const fireballSize = fireballState.size * camera.zoom;
+            for (const fireball of fireballs) {
+                const centerX = (fireball.x - camera.x) * camera.zoom;
+                const centerY = (fireball.y - camera.y) * camera.zoom;
+
+                if (fireballSprite.complete && fireballSprite.naturalWidth > 0) {
+                    const sourceImage = fireballProcessedSprite || fireballSprite;
+                    const fallbackRect = {
+                        sx: 0,
+                        sy: 0,
+                        sw: sourceImage.naturalWidth || sourceImage.width || 1,
+                        sh: sourceImage.naturalHeight || sourceImage.height || 1
+                    };
+                    const frames = fireballSkinRects.length > 0 ? fireballSkinRects : [fallbackRect];
+                    const frameIndex = fireball.frameX % Math.max(1, Math.min(fireballState.skinFrames, frames.length));
+                    const frameRect = frames[frameIndex] || frames[0];
+                    const pivot = { x: frameRect.sw / 2, y: frameRect.sh / 2 };
+                    const renderScale = fireballSize / Math.max(frameRect.sw, frameRect.sh);
+                    const renderW = frameRect.sw * renderScale;
+                    const renderH = frameRect.sh * renderScale;
+                    const angle = Math.atan2(fireball.vy, fireball.vx);
+
+                    ctx.save();
+                    ctx.translate(centerX, centerY);
+                    ctx.rotate(angle + Math.PI / 2);
+                    ctx.drawImage(
+                        sourceImage,
+                        frameRect.sx,
+                        frameRect.sy,
+                        frameRect.sw,
+                        frameRect.sh,
+                        -pivot.x * renderScale,
+                        -pivot.y * renderScale,
+                        renderW,
+                        renderH
+                    );
+                    ctx.restore();
+                } else {
+                    ctx.fillStyle = "#ff7a00";
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, fireballSize / 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            if (fireballExplosionSprite.complete && fireballExplosionSprite.naturalWidth > 0) {
+                const sourceImage = explosionProcessedSprite || fireballExplosionSprite;
+                const fallbackRect = {
+                    sx: 0,
+                    sy: 0,
+                    sw: sourceImage.naturalWidth || sourceImage.width || 1,
+                    sh: sourceImage.naturalHeight || sourceImage.height || 1
+                };
+                const frames = explosionSkinRects.length > 0 ? explosionSkinRects : [fallbackRect];
+                const frameCount = Math.max(1, Math.min(fireballState.explosionFramesToUse, frames.length));
+                const explosionSize = fireballState.explosionSize * camera.zoom;
+
+                for (const explosion of fireballExplosions) {
+                    const frame = explosion.frame % frameCount;
+                    const frameRect = frames[frame] || frames[0];
+                    const dx = (explosion.x - camera.x) * camera.zoom - explosionSize / 2;
+                    const dy = (explosion.y - camera.y) * camera.zoom - explosionSize / 2;
+
+                    ctx.drawImage(
+                        sourceImage,
+                        frameRect.sx,
+                        frameRect.sy,
+                        frameRect.sw,
+                        frameRect.sh,
+                        dx,
+                        dy,
+                        explosionSize,
+                        explosionSize
+                    );
+                }
             }
         }
     }
