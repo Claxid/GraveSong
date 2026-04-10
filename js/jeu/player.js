@@ -102,7 +102,8 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         range: 220,
         halfAngle: Math.PI / 3,
         Axe: 0,
-        Fireball: 0
+        Fireball: 0,
+        ChaosAura: 0
     };
     const attackStats = { ...BASE_ATTACK_STATS };
 
@@ -139,6 +140,30 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         explosionCols: 7,
         explosionRows: 7
     };
+
+    const chaosAuraState = {
+        active: false,
+        radius: 75,
+        damage: 22,
+        cooldown: 2000,
+        sizeMultiplier: 1,
+        damageMultiplier: 1,
+        cooldownMultiplier: 1,
+        nextPulseAt: 0,
+        frames: [],
+        frameIndex: 0,
+        pulseAnimActive: false,
+        pulseAnimStartAt: 0,
+        pulseAnimDurationMs: 700,
+        knockbackDistance: 18,
+        knockbackAppliedEnemies: new WeakSet()
+    };
+
+    for (let i = 1; i <= 12; i++) {
+        const frame = new Image();
+        frame.src = `../assets/sprites/Zone/frames/BloodMage_skill2_frame${i}.png`;
+        chaosAuraState.frames.push(frame);
+    }
 
     const fireballs = [];
     const fireballExplosions = [];
@@ -359,14 +384,41 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
 
     const AXE_PERK_ID = "Axe";
     const AXE_UNLOCK_LEVEL = 5;
+    const CHAOS_AURA_UNLOCK_PERK_ID = "chaos_aura_unlock";
+    const CHAOS_AURA_SIZE_PERK_ID = "chaos_aura_size_up";
+    const CHAOS_AURA_DAMAGE_PERK_ID = "chaos_aura_damage_up";
+    const CHAOS_AURA_COOLDOWN_PERK_ID = "chaos_aura_cooldown_down";
+    const CHAOS_AURA_UNLOCK_LEVEL = 5;
     const FIREBALL_UNLOCK_PERK_ID = "fireball_unlock";
     const FIREBALL_COUNT_PERK_ID = "fireball_count_up";
     const FIREBALL_COOLDOWN_PERK_ID = "fireball_cooldown_down";
     const FIREBALL_UNLOCK_LEVEL = 6;
-    const SKILL_PERK_IDS = new Set([AXE_PERK_ID, FIREBALL_UNLOCK_PERK_ID, FIREBALL_COUNT_PERK_ID, FIREBALL_COOLDOWN_PERK_ID]);
+    const SKILL_PERK_IDS = new Set([
+        AXE_PERK_ID,
+        CHAOS_AURA_UNLOCK_PERK_ID,
+        FIREBALL_UNLOCK_PERK_ID,
+        FIREBALL_COUNT_PERK_ID,
+        FIREBALL_COOLDOWN_PERK_ID
+    ]);
 
     function isFireballUnlocked() {
         return (Number(attackStats.Fireball) || 0) > 0;
+    }
+
+    function isChaosAuraUnlocked() {
+        return (Number(attackStats.ChaosAura) || 0) > 0;
+    }
+
+    function getChaosAuraRadius() {
+        return chaosAuraState.radius * chaosAuraState.sizeMultiplier;
+    }
+
+    function getChaosAuraDamage() {
+        return Math.max(1, Math.round(chaosAuraState.damage * chaosAuraState.damageMultiplier));
+    }
+
+    function getChaosAuraCooldownMs() {
+        return Math.max(250, Math.round(chaosAuraState.cooldown * chaosAuraState.cooldownMultiplier));
     }
 
     const perkPool = [
@@ -375,6 +427,10 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         { id: "range_up", name: "+20% Portee", description: "Vous touchez de plus loin.", apply: ({ attackStats: s }) => { s.range = Math.round(s.range * 1.2); } },
         { id: "arc_up", name: "+15° Angle", description: "Votre attaque devient plus large.", apply: ({ attackStats: s }) => { s.halfAngle = Math.min(Math.PI, s.halfAngle + (Math.PI / 12)); } },
         { id: "Axe", name: "+1 hache", description: "Vous gagnez une puissante hache.", apply: ({ attackStats: s }) => { s.Axe = (Number(s.Axe) || 0) + 1; } },
+        { id: CHAOS_AURA_UNLOCK_PERK_ID, name: "Aura du chaos", description: "Aura omnipresente autour du joueur.", apply: ({ attackStats: s }) => { s.ChaosAura = Math.max(1, (Number(s.ChaosAura) || 0) + 1); } },
+        { id: CHAOS_AURA_SIZE_PERK_ID, name: "Aura +10% taille", description: "L'aura couvre une plus grande zone.", apply: ({ chaosAuraState: a }) => { a.sizeMultiplier *= 1.1; } },
+        { id: CHAOS_AURA_DAMAGE_PERK_ID, name: "Aura +15% degats", description: "Chaque pulse inflige plus de degats.", apply: ({ chaosAuraState: a }) => { a.damageMultiplier *= 1.15; } },
+        { id: CHAOS_AURA_COOLDOWN_PERK_ID, name: "Aura -10% cooldown", description: "L'aura pulse plus souvent.", apply: ({ chaosAuraState: a }) => { a.cooldownMultiplier *= 0.9; } },
         { id: FIREBALL_UNLOCK_PERK_ID, name: "Fireball", description: "Vous lancez des fireballs.", apply: ({ attackStats: s }) => { s.Fireball = Math.max(1, (Number(s.Fireball) || 0) + 1); } },
         { id: FIREBALL_COUNT_PERK_ID, name: "+1 fireball", description: "Lance une fireball supplementaire.", apply: ({ attackStats: s }) => { s.Fireball = (Number(s.Fireball) || 0) + 1; } },
         { id: FIREBALL_COOLDOWN_PERK_ID, name: "-20% de cooldown fireball", description: "Les fireballs sont lancees plus souvent.", apply: ({ fireballState: f }) => { f.cooldown = Math.max(400, Math.round(f.cooldown * 0.8)); } }
@@ -388,13 +444,17 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         // Level 5: skill perks only, with both base skills available.
         if (forLevel === AXE_UNLOCK_LEVEL) {
             const axePerk = perkPool.find((perk) => perk.id === AXE_PERK_ID);
+            const chaosAuraPerk = perkPool.find((perk) => perk.id === CHAOS_AURA_UNLOCK_PERK_ID);
             const fireballPerk = perkPool.find((perk) => perk.id === FIREBALL_UNLOCK_PERK_ID);
-            const level5Choices = [axePerk, fireballPerk].filter(Boolean);
+            const level5Choices = [axePerk, chaosAuraPerk, fireballPerk].filter(Boolean);
             return level5Choices.map((perk) => ({ id: perk.id, name: perk.name, description: perk.description }));
         }
 
         const regularPerks = perkPool.filter((perk) => {
             if (perk.id === AXE_PERK_ID && forLevel < AXE_UNLOCK_LEVEL) return false;
+            if (perk.id === CHAOS_AURA_UNLOCK_PERK_ID && forLevel < CHAOS_AURA_UNLOCK_LEVEL) return false;
+            if (perk.id === CHAOS_AURA_UNLOCK_PERK_ID && isChaosAuraUnlocked()) return false;
+            if ((perk.id === CHAOS_AURA_SIZE_PERK_ID || perk.id === CHAOS_AURA_DAMAGE_PERK_ID || perk.id === CHAOS_AURA_COOLDOWN_PERK_ID) && !isChaosAuraUnlocked()) return false;
             if (perk.id === FIREBALL_UNLOCK_PERK_ID && forLevel < FIREBALL_UNLOCK_LEVEL) return false;
             if (perk.id === FIREBALL_UNLOCK_PERK_ID && isFireballUnlocked()) return false;
             if ((perk.id === FIREBALL_COUNT_PERK_ID || perk.id === FIREBALL_COOLDOWN_PERK_ID) && !isFireballUnlocked()) return false;
@@ -445,9 +505,15 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         if (!choice) return null;
         const perk = perkPool.find((p) => p.id === choice.id);
         if (!perk) return null;
-        perk.apply({ attackStats, fireballState });
+        perk.apply({ attackStats, fireballState, chaosAuraState });
         axeState.count = Math.max(0, Number(attackStats.Axe) || 0);
         axeState.active = axeState.count > 0;
+        chaosAuraState.active = isChaosAuraUnlocked();
+        if (chaosAuraState.active && chaosAuraState.nextPulseAt <= 0) {
+            const now = performance.now();
+            const initialDelayMs = Math.round(getChaosAuraCooldownMs() * 1.5);
+            chaosAuraState.nextPulseAt = now + initialDelayMs;
+        }
         fireballState.count = Math.max(0, Number(attackStats.Fireball) || 0);
         fireballState.active = fireballState.count > 0;
         syncDerivedAttackVisualStats();
@@ -561,6 +627,59 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         }
 
         const now = performance.now();
+
+        if (chaosAuraState.active) {
+            if (chaosAuraState.pulseAnimActive) {
+                const elapsed = now - chaosAuraState.pulseAnimStartAt;
+                const progress = elapsed / Math.max(1, chaosAuraState.pulseAnimDurationMs);
+                if (progress >= 1) {
+                    chaosAuraState.pulseAnimActive = false;
+                    chaosAuraState.frameIndex = 0;
+                } else {
+                    const frameCount = Math.max(1, chaosAuraState.frames.length);
+                    chaosAuraState.frameIndex = Math.min(frameCount - 1, Math.floor(progress * frameCount));
+                }
+            }
+
+            const auraCooldown = getChaosAuraCooldownMs();
+            if (chaosAuraState.nextPulseAt <= 0) {
+                chaosAuraState.nextPulseAt = now + auraCooldown;
+            }
+
+            if (now >= chaosAuraState.nextPulseAt) {
+                const auraRadius = getChaosAuraRadius();
+                const auraDamage = getChaosAuraDamage();
+
+                for (const enemy of enemies) {
+                    if (!enemy || enemy.hp <= 0) continue;
+
+                    const dx = enemy.x - player.x;
+                    const dy = enemy.y - player.y;
+                    const enemyRadius = Math.max(enemy.hitW || 0, enemy.hitH || 0) / 2;
+                    const hitDistance = auraRadius + enemyRadius;
+                    if ((dx * dx + dy * dy) > hitDistance * hitDistance) continue;
+
+                    enemy.hp = Math.max(0, enemy.hp - auraDamage);
+
+                    if (!chaosAuraState.knockbackAppliedEnemies.has(enemy)) {
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist > 0.0001) {
+                            const pushX = (dx / dist) * chaosAuraState.knockbackDistance;
+                            const pushY = (dy / dist) * chaosAuraState.knockbackDistance;
+                            enemy.x += pushX;
+                            enemy.y += pushY;
+                        }
+                        chaosAuraState.knockbackAppliedEnemies.add(enemy);
+                    }
+                }
+
+                chaosAuraState.pulseAnimActive = true;
+                chaosAuraState.pulseAnimStartAt = now;
+                chaosAuraState.frameIndex = 0;
+                chaosAuraState.nextPulseAt = now + auraCooldown;
+            }
+        }
+
         if (now - lastAttackTime >= attackStats.cooldown && enemies.length > 0) {
             let nearest = null;
             let nearestDist = Infinity;
@@ -768,6 +887,37 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
     }
 
     function drawAttacks() {
+        if (chaosAuraState.active) {
+            const auraRadius = getChaosAuraRadius();
+            const auraSize = auraRadius * 2 * camera.zoom;
+            const centerX = (player.x - camera.x) * camera.zoom;
+            const centerY = (player.y - camera.y) * camera.zoom;
+            const auraFrame = chaosAuraState.frames[chaosAuraState.frameIndex];
+
+            if (auraFrame && auraFrame.complete && auraFrame.naturalWidth > 0) {
+                ctx.save();
+                ctx.globalAlpha = chaosAuraState.pulseAnimActive ? 0.82 : 0.42;
+                ctx.drawImage(
+                    auraFrame,
+                    centerX - auraSize / 2,
+                    centerY - auraSize / 2,
+                    auraSize,
+                    auraSize
+                );
+                ctx.restore();
+            } else {
+                ctx.save();
+                ctx.fillStyle = "rgba(156, 40, 24, 0.18)";
+                ctx.strokeStyle = "rgba(255, 120, 60, 0.75)";
+                ctx.lineWidth = Math.max(2, camera.zoom * 2);
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, auraRadius * camera.zoom, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
         const frameSize = 100;
         const size = frameSize * player.scale * attackStats.sizeMultiplier * camera.zoom;
         for (const atk of attacks) {
