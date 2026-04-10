@@ -21,6 +21,12 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
     fireballSprite.src = "../assets/sprites/Fireball/fireball_0.png";
     const fireballExplosionSprite = new Image();
     fireballExplosionSprite.src = "../assets/sprites/Fireball/toppng.com-explosion-sprite-png-2d-explosion-sprite-sheet-899x857.png";
+    fireballSprite.addEventListener("error", () => {
+        console.warn("Fireball sprite introuvable: ../assets/sprites/Fireball/fireball_0.png");
+    });
+    fireballExplosionSprite.addEventListener("error", () => {
+        console.warn("Explosion sprite introuvable: ../assets/sprites/Fireball/toppng.com-explosion-sprite-png-2d-explosion-sprite-sheet-899x857.png");
+    });
     let fireballProcessedSprite = null;
     let explosionProcessedSprite = null;
     let fireballSkinRects = [];
@@ -126,6 +132,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         lastCastAt: 0,
         skinFrames: 2,
         skinAnimSpeed: 5,
+        spriteAngleOffset: 0,
         explosionSize: 96,
         explosionAnimSpeed: 5,
         explosionFramesToUse: 2,
@@ -838,7 +845,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
 
                     ctx.save();
                     ctx.translate(centerX, centerY);
-                    ctx.rotate(angle + Math.PI / 2);
+                    ctx.rotate(angle + fireballState.spriteAngleOffset);
                     ctx.drawImage(
                         sourceImage,
                         frameRect.sx,
