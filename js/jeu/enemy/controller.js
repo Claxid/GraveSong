@@ -33,6 +33,11 @@ window.createEnemyController = function createEnemyController(canvas, ctx, camer
 
         const multipliers = getEventMultipliers();
         const currentSpeed = enemy.speed * multipliers.enemySpeed;
+        
+        // LOG pour debug vitesse (seulement si modifié)
+        if (multipliers.enemySpeed > 1 && enemy.x % 100 < 5) { // Log occasionnel
+            console.log(`🔥 ENNEMI RAPIDE: ${currentSpeed.toFixed(1)} (base: ${enemy.speed})`);
+        }
 
         enemy.x += (dx / distance) * currentSpeed;
         enemy.y += (dy / distance) * currentSpeed;

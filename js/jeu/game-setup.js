@@ -39,7 +39,7 @@ const ENEMY_SPAWN_WEIGHTS = [
 
 const CONTACT_DAMAGE = 5;
 const DAMAGE_COOLDOWN_MS = 500;
-const SHOW_HITBOXES = true;
+const SHOW_HITBOXES = false;
 const isMap1 = window.location.pathname.replace(/\\/g, "/").endsWith("/template/map1.html");
 const isVilleMap = window.location.pathname.replace(/\\/g, "/").endsWith("/template/ville.html");
 const map1PortalZone = {

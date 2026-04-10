@@ -43,6 +43,12 @@ function loop() {
             const multipliers = typeof getEventMultipliers === 'function' ? getEventMultipliers() : { spawnRate: 1 };
             const baseSpawnCount = Math.min(spawnBatchSize, availableSlots);
             const spawnCount = Math.min(maxEnemies - enemyControllers.length, Math.ceil(baseSpawnCount * multipliers.spawnRate));
+            
+            // LOG pour debug spawn
+            if (multipliers.spawnRate > 1) {
+                console.log(`🩸 SPAWN x${multipliers.spawnRate}: ${spawnCount} ennemis (base: ${baseSpawnCount})`);
+            }
+            
             for (let i = 0; i < spawnCount; i++) spawnEnemyNearPlayer();
             lastSpawnAt = now;
         }

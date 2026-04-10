@@ -40,7 +40,7 @@ function createPlayerMovementController(canvas, ctx, camera) {
         spawnY: 2200,
         x: 1774,
         y: 2200,
-        speed: 6,
+        speed: 5,
         frameX: 0,
         frameY: 0,
         frameSize: 100,
