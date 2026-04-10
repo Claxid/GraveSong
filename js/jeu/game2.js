@@ -17,12 +17,7 @@ const mapRenderer = createMapRenderer(canvas, ctx);
 const cameraController = createCameraController(canvas, mapRenderer.MAP_WIDTH, mapRenderer.MAP_HEIGHT);
 const playerController = createPlayerController(canvas, ctx, cameraController.camera);
 const enemyControllers = [];
-const potions = [];
-const potionSprite = new Image();
-potionSprite.src = "../assets/sprites/potion/healing_potion.png";
 
-const POTION_DROP_CHANCE = 0.003;
-const POTION_HEAL_AMOUNT = 15;
 const SPAWN_RING_MIN = 500;
 const SPAWN_RING_MAX = 700;
 const BASE_SPAWN_INTERVAL_MS = 2200;
@@ -42,13 +37,13 @@ const ENEMY_KILL_EXP = 30;
 const CONTACT_DAMAGE = 5;
 const DAMAGE_COOLDOWN_MS = 500;
 const SHOW_HITBOXES = false;
-const isMap1 = window.location.pathname.replace(/\\/g, "/").endsWith("/template/map1.html");
+const isMap1 = window.location.pathname.replace(/\\/g, "/").endsWith("/template/map2.html");
 const isVilleMap = window.location.pathname.replace(/\\/g, "/").endsWith("/template/ville.html");
-const map1PortalZone = {
+const map2PortalZone = {
     x: 2270,
     y: 895,
-    w: 2309 - 2270,
-    h: 951 - 895
+    w: 39,
+    h: 56,
 };
 let isChangingMap = false;
 let lastContactDamageAt = 0;
@@ -270,22 +265,6 @@ function loop() {
 
         for (let i = enemyControllers.length - 1; i >= 0; i--) {
             if (enemyControllers[i].enemy.hp > 0) continue;
-
-            const deadEnemy = enemyControllers[i].enemy;
-            const deadX = deadEnemy.x;
-            const deadY = deadEnemy.y;
-
-            if (Math.random() < POTION_DROP_CHANCE) {
-                potions.push({
-                    x: deadX,
-                    y: deadY,
-                    w: 32,
-                    h: 32,
-                    healAmount: POTION_HEAL_AMOUNT
-              });
-        }
-
-
             enemyControllers.splice(i, 1);
             killCount += 1;
             givePlayerExp(ENEMY_KILL_EXP);
@@ -300,29 +279,9 @@ function loop() {
 
     const playerHitbox = getEntityHitbox(playerController.player);
 
-    if (canUpdateWorld) {
-        for (let i = potions.length - 1; i >= 0; i--) {
-            const potion = potions[i];
-            const potionHitbox = {
-                x: potion.x - potion.w / 2,
-                y: potion.y - potion.h / 2,
-                w: potion.w,
-                h: potion.h
-            };
-
-            if (!isRectOverlap(playerHitbox, potionHitbox)) continue;
-
-            playerController.player.hp = Math.min(
-                playerController.player.maxHp,
-                playerController.player.hp + potion.healAmount
-            );
-            potions.splice(i, 1);
-        }
-    }
-
-    if (isVilleMap && !isChangingMap && isRectOverlap(playerHitbox, map1PortalZone)) {
+    if (isVilleMap && !isChangingMap && isRectOverlap(playerHitbox, map2PortalZone)) {
         isChangingMap = true;
-        window.location.href = "map1.html";
+        window.location.href = "map2.html";
         return;
     }
 
@@ -370,27 +329,6 @@ function loop() {
     // EFFETS D'ATTAQUE (dessinés après le joueur, avant les ennemis)
     playerController.drawAttacks();
 
-    // POTIONS (dessinees avant les ennemis => derriere eux)
-    for (const potion of potions) {
-        const size = 55 * cameraController.camera.zoom;
-        const drawX = (potion.x - cameraController.camera.x) * cameraController.camera.zoom - size / 2;
-        const drawY = (potion.y - cameraController.camera.y) * cameraController.camera.zoom - size / 2;
-
-        if (potionSprite.complete) {
-            ctx.drawImage(
-                potionSprite,
-                drawX,
-                drawY,
-                size,
-                size
-            );
-        } else {
-            ctx.fillStyle = "red";
-            ctx.fillRect(drawX, drawY, size, size);
-        }
-    }
-
-
     // ENNEMI
     for (const enemyController of enemyControllers) {
         enemyController.draw();
@@ -423,6 +361,7 @@ function loop() {
 
         ctx.restore();
     }
+
     // HUD - Barre de vie (bas gauche)
     const barX = uiStyles.hpOffsetLeft;
     const barY = canvas.height - uiStyles.hpOffsetBottom;
