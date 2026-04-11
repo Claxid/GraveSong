@@ -24,8 +24,12 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
 
     const axeSprite = new Image();
     axeSprite.src = "../assets/sprites/axe.png";
+    const infernalAxeSprite = new Image();
+    infernalAxeSprite.src = "../assets/sprites/axe(2).png";
     let axeSourceRect = null;
     let axePivot = null;
+    let infernalAxeSourceRect = null;
+    let infernalAxePivot = null;
 
     const fireballSprite = new Image();
     fireballSprite.src = "../assets/sprites/Fireball/fireball_0.png";
@@ -117,6 +121,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         radius: 72,
         angularSpeed: 0.045,
         damageMultiplier: 1.35,
+        infernalDamageMultiplier: 3.25,
         hitCooldown: 220,
         size: 60,
         lastHitByEnemy: new Map()
@@ -157,6 +162,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         pulseAnimStartAt: 0,
         pulseAnimDurationMs: 700,
         knockbackDistance: 18,
+        devMinCooldownMs: null,
         knockbackAppliedEnemies: new WeakSet()
     };
 
@@ -325,66 +331,86 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         }
     });
 
+    function extractAxeSpriteBounds(image) {
+        const probeCanvas = document.createElement("canvas");
+        probeCanvas.width = image.naturalWidth;
+        probeCanvas.height = image.naturalHeight;
+        const probeCtx = probeCanvas.getContext("2d", { willReadFrequently: true });
+        if (!probeCtx) return { sourceRect: null, pivot: null };
+
+        probeCtx.drawImage(image, 0, 0);
+        const data = probeCtx.getImageData(0, 0, probeCanvas.width, probeCanvas.height).data;
+
+        let minX = probeCanvas.width;
+        let minY = probeCanvas.height;
+        let maxX = -1;
+        let maxY = -1;
+        let sumX = 0;
+        let sumY = 0;
+        let sumWeight = 0;
+
+        for (let y = 0; y < probeCanvas.height; y++) {
+            for (let x = 0; x < probeCanvas.width; x++) {
+                const idx = (y * probeCanvas.width + x) * 4;
+                const r = data[idx];
+                const g = data[idx + 1];
+                const b = data[idx + 2];
+                const a = data[idx + 3];
+
+                if (a < 20 || (r < 20 && g < 20 && b < 20)) continue;
+
+                const weight = Math.max(1, a);
+                sumX += x * weight;
+                sumY += y * weight;
+                sumWeight += weight;
+
+                if (x < minX) minX = x;
+                if (y < minY) minY = y;
+                if (x > maxX) maxX = x;
+                if (y > maxY) maxY = y;
+            }
+        }
+
+        if (maxX < minX || maxY < minY) {
+            return { sourceRect: null, pivot: null };
+        }
+
+        const pad = 2;
+        const sx = Math.max(0, minX - pad);
+        const sy = Math.max(0, minY - pad);
+        const sw = Math.min(probeCanvas.width - sx, (maxX - minX + 1) + pad * 2);
+        const sh = Math.min(probeCanvas.height - sy, (maxY - minY + 1) + pad * 2);
+
+        return {
+            sourceRect: { sx, sy, sw, sh },
+            pivot: sumWeight > 0
+                ? {
+                    x: (sumX / sumWeight) - sx,
+                    y: (sumY / sumWeight) - sy
+                }
+                : null
+        };
+    }
+
     axeSprite.addEventListener("load", () => {
         try {
-            const probeCanvas = document.createElement("canvas");
-            probeCanvas.width = axeSprite.naturalWidth;
-            probeCanvas.height = axeSprite.naturalHeight;
-            const probeCtx = probeCanvas.getContext("2d", { willReadFrequently: true });
-            if (!probeCtx) return;
-
-            probeCtx.drawImage(axeSprite, 0, 0);
-            const data = probeCtx.getImageData(0, 0, probeCanvas.width, probeCanvas.height).data;
-
-            let minX = probeCanvas.width;
-            let minY = probeCanvas.height;
-            let maxX = -1;
-            let maxY = -1;
-            let sumX = 0;
-            let sumY = 0;
-            let sumWeight = 0;
-
-            for (let y = 0; y < probeCanvas.height; y++) {
-                for (let x = 0; x < probeCanvas.width; x++) {
-                    const idx = (y * probeCanvas.width + x) * 4;
-                    const r = data[idx];
-                    const g = data[idx + 1];
-                    const b = data[idx + 2];
-                    const a = data[idx + 3];
-
-                    // Ignore near-black background pixels from source image.
-                    if (a < 20 || (r < 20 && g < 20 && b < 20)) continue;
-
-                    const weight = Math.max(1, a);
-                    sumX += x * weight;
-                    sumY += y * weight;
-                    sumWeight += weight;
-
-                    if (x < minX) minX = x;
-                    if (y < minY) minY = y;
-                    if (x > maxX) maxX = x;
-                    if (y > maxY) maxY = y;
-                }
-            }
-
-            if (maxX >= minX && maxY >= minY) {
-                const pad = 2;
-                const sx = Math.max(0, minX - pad);
-                const sy = Math.max(0, minY - pad);
-                const sw = Math.min(probeCanvas.width - sx, (maxX - minX + 1) + pad * 2);
-                const sh = Math.min(probeCanvas.height - sy, (maxY - minY + 1) + pad * 2);
-                axeSourceRect = { sx, sy, sw, sh };
-
-                if (sumWeight > 0) {
-                    axePivot = {
-                        x: (sumX / sumWeight) - sx,
-                        y: (sumY / sumWeight) - sy
-                    };
-                }
-            }
+            const bounds = extractAxeSpriteBounds(axeSprite);
+            axeSourceRect = bounds.sourceRect;
+            axePivot = bounds.pivot;
         } catch (_err) {
             axeSourceRect = null;
             axePivot = null;
+        }
+    });
+
+    infernalAxeSprite.addEventListener("load", () => {
+        try {
+            const bounds = extractAxeSpriteBounds(infernalAxeSprite);
+            infernalAxeSourceRect = bounds.sourceRect;
+            infernalAxePivot = bounds.pivot;
+        } catch (_err) {
+            infernalAxeSourceRect = null;
+            infernalAxePivot = null;
         }
     });
 
@@ -392,6 +418,34 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         while (angle <= -Math.PI) angle += Math.PI * 2;
         while (angle > Math.PI) angle -= Math.PI * 2;
         return angle;
+    }
+
+    function getAxeCount() {
+        return Math.max(0, Math.min(5, Number(attackStats.Axe) || 0));
+    }
+
+    function isInfernalAxeActive() {
+        return getAxeCount() >= 5;
+    }
+
+    function getAxeDamageMultiplier() {
+        return isInfernalAxeActive() ? axeState.infernalDamageMultiplier : axeState.damageMultiplier;
+    }
+
+    function getAxePerkCard() {
+        if (getAxeCount() >= 4) {
+            return {
+                id: AXE_PERK_ID,
+                name: "Brasier infernal",
+                description: "Derniere hache: sprite enflamme et gros boost de degats."
+            };
+        }
+
+        return {
+            id: AXE_PERK_ID,
+            name: "Hache runique",
+            description: "Ajoute 1 hache orbitale."
+        };
     }
 
    
@@ -471,7 +525,10 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
     }
 
     function getChaosAuraCooldownMs() {
-        return Math.max(250, Math.round(chaosAuraState.cooldown * chaosAuraState.cooldownMultiplier));
+        const minCooldown = Number.isFinite(chaosAuraState.devMinCooldownMs)
+            ? Math.max(20, chaosAuraState.devMinCooldownMs)
+            : 250;
+        return Math.max(minCooldown, Math.round(chaosAuraState.cooldown * chaosAuraState.cooldownMultiplier));
     }
 
     function getBlackHoleCooldownMs() {
@@ -499,7 +556,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         { id: "cooldown_down", name: "Ferveur noire", description: "Attaques 20% plus rapides.", apply: ({ attackStats: s }) => { s.cooldown = Math.max(250, Math.round(s.cooldown * 0.8)); } },
         { id: "range_up", name: "Lame allongee", description: "+20% de portee.", apply: ({ attackStats: s }) => { s.range = Math.round(s.range * 1.2); } },
         { id: "arc_up", name: "Croissant maudit", description: "Arc d'attaque +15 degres.", apply: ({ attackStats: s }) => { s.halfAngle = Math.min(Math.PI, s.halfAngle + (Math.PI / 12)); } },
-        { id: "Axe", name: "Hache runique", description: "Ajoute 1 hache orbitale.", apply: ({ attackStats: s }) => { s.Axe = (Number(s.Axe) || 0) + 1; } },
+        { id: "Axe", name: "Hache runique", description: "Ajoute 1 hache orbitale.", apply: ({ attackStats: s }) => { s.Axe = Math.min(5, (Number(s.Axe) || 0) + 1); } },
         { id: CHAOS_AURA_UNLOCK_PERK_ID, name: "Halo profane", description: "Debloque l'aura du chaos.", apply: ({ attackStats: s }) => { s.ChaosAura = Math.max(1, (Number(s.ChaosAura) || 0) + 1); } },
         { id: CHAOS_AURA_SIZE_PERK_ID, name: "Voile vaste", description: "Aura: +10% de rayon.", apply: ({ chaosAuraState: a }) => { a.sizeMultiplier *= 1.1; } },
         { id: CHAOS_AURA_DAMAGE_PERK_ID, name: "Brulure astrale", description: "Aura: +15% degats.", apply: ({ chaosAuraState: a }) => { a.damageMultiplier *= 1.15; } },
@@ -520,7 +577,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
     function pickRandomPerks(count, forLevel = player.level) {
         // Level 5: skill perks only, including black hole unlock.
         if (forLevel === AXE_UNLOCK_LEVEL) {
-            const axePerk = perkPool.find((perk) => perk.id === AXE_PERK_ID);
+            const axePerk = getAxePerkCard();
             const chaosAuraPerk = perkPool.find((perk) => perk.id === CHAOS_AURA_UNLOCK_PERK_ID);
             const fireballPerk = perkPool.find((perk) => perk.id === FIREBALL_UNLOCK_PERK_ID);
             const blackHolePerk = perkPool.find((perk) => perk.id === BLACK_HOLE_UNLOCK_PERK_ID);
@@ -540,7 +597,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         }
 
         const regularPerks = perkPool.filter((perk) => {
-            if (perk.id === AXE_PERK_ID && forLevel < AXE_UNLOCK_LEVEL) return false;
+            if (perk.id === AXE_PERK_ID && (forLevel < AXE_UNLOCK_LEVEL || getAxeCount() >= 5)) return false;
             if (perk.id === CHAOS_AURA_UNLOCK_PERK_ID && forLevel < CHAOS_AURA_UNLOCK_LEVEL) return false;
             if (perk.id === CHAOS_AURA_UNLOCK_PERK_ID && isChaosAuraUnlocked()) return false;
             if ((perk.id === CHAOS_AURA_SIZE_PERK_ID || perk.id === CHAOS_AURA_DAMAGE_PERK_ID || perk.id === CHAOS_AURA_COOLDOWN_PERK_ID) && !isChaosAuraUnlocked()) return false;
@@ -566,11 +623,17 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
 
         const selected = shuffled.slice(0, Math.min(count, shuffled.length));
 
-        return selected.map((perk) => ({
-            id: perk.id,
-            name: perk.name,
-            description: perk.description
-        }));
+        return selected.map((perk) => {
+            if (perk.id === AXE_PERK_ID) {
+                return getAxePerkCard();
+            }
+
+            return {
+                id: perk.id,
+                name: perk.name,
+                description: perk.description
+            };
+        });
     }
 
     function queuePerkChoices(levelsGained = 1) {
@@ -598,7 +661,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         const perk = perkPool.find((p) => p.id === choice.id);
         if (!perk) return null;
         perk.apply({ attackStats, fireballState, chaosAuraState, blackHoleState });
-        axeState.count = Math.max(0, Number(attackStats.Axe) || 0);
+        axeState.count = getAxeCount();
         axeState.active = axeState.count > 0;
         chaosAuraState.active = isChaosAuraUnlocked();
         if (chaosAuraState.active && chaosAuraState.nextPulseAt <= 0) {
@@ -982,7 +1045,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
             const axeCount = Math.max(1, Math.min(5, axeState.count));
             const step = (Math.PI * 2) / axeCount;
             const axeHitRadius = 42;
-            const axeDamage = Math.max(1, attackStats.damage * axeState.damageMultiplier);
+            const axeDamage = Math.max(1, attackStats.damage * getAxeDamageMultiplier());
 
             for (let axeIdx = 0; axeIdx < axeCount; axeIdx++) {
                 const axeAngle = axeState.angle + step * axeIdx;
@@ -1012,7 +1075,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         }
 
         if (fireballState.active && enemies.length > 0 && now - fireballState.lastCastAt >= fireballState.cooldown) {
-            const fireballCount = Math.max(1, Math.min(6, fireballState.count));
+            const fireballCount = Math.max(1, Math.min(50, fireballState.count));
             const targets = getNearestEnemies(enemies, player.x, player.y, fireballCount);
 
             for (const target of targets) {
@@ -1042,7 +1105,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
 
         const blackHoleCooldown = getBlackHoleCooldownMs();
         if (blackHoleState.active && enemies.length > 0 && now - blackHoleState.lastSpawnAt >= blackHoleCooldown) {
-            const blackHoleCount = Math.max(1, Math.min(4, blackHoleState.count));
+            const blackHoleCount = Math.max(1, Math.min(16, blackHoleState.count));
             const targets = findBlackHoleTargets(enemies, blackHoleCount);
             if (targets.length > 0) {
                 const spreadTargets = spreadBlackHoleTargetsChaotically(targets);
@@ -1306,13 +1369,19 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
 
             const axeCount = Math.max(1, Math.min(5, axeState.count));
             const step = (Math.PI * 2) / axeCount;
+            const useInfernalAxe = isInfernalAxeActive() && infernalAxeSprite.complete && infernalAxeSprite.naturalWidth > 0;
+            const activeAxeSprite = useInfernalAxe ? infernalAxeSprite : axeSprite;
+            const sourceRect = useInfernalAxe
+                ? (infernalAxeSourceRect || { sx: 0, sy: 0, sw: activeAxeSprite.naturalWidth || 1, sh: activeAxeSprite.naturalHeight || 1 })
+                : (axeSourceRect || { sx: 0, sy: 0, sw: activeAxeSprite.naturalWidth || 1, sh: activeAxeSprite.naturalHeight || 1 });
+            const pivot = useInfernalAxe
+                ? (infernalAxePivot || { x: sourceRect.sw / 2, y: sourceRect.sh / 2 })
+                : (axePivot || { x: sourceRect.sw / 2, y: sourceRect.sh / 2 });
 
             for (let axeIdx = 0; axeIdx < axeCount; axeIdx++) {
                 const axeAngle = axeState.angle + step * axeIdx;
                 const axeX = (player.x + Math.cos(axeAngle) * axeState.radius - camera.x) * camera.zoom;
                 const axeY = (player.y + Math.sin(axeAngle) * axeState.radius - camera.y) * camera.zoom;
-                const sourceRect = axeSourceRect || { sx: 0, sy: 0, sw: axeSprite.naturalWidth || 1, sh: axeSprite.naturalHeight || 1 };
-                const pivot = axePivot || { x: sourceRect.sw / 2, y: sourceRect.sh / 2 };
                 const renderScale = axeSize / Math.max(sourceRect.sw, sourceRect.sh);
                 const renderW = sourceRect.sw * renderScale;
                 const renderH = sourceRect.sh * renderScale;
@@ -1320,9 +1389,9 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
                 ctx.save();
                 ctx.translate(axeX, axeY);
                 ctx.rotate(axeAngle + Math.PI + axeState.spinAngle);
-                if (axeSprite.complete && axeSprite.naturalWidth > 0) {
+                if (activeAxeSprite.complete && activeAxeSprite.naturalWidth > 0) {
                     ctx.drawImage(
-                        axeSprite,
+                        activeAxeSprite,
                         sourceRect.sx,
                         sourceRect.sy,
                         sourceRect.sw,
@@ -1423,17 +1492,26 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
 
     function applyDevTestLoadout() {
         attackStats.Axe = 5;
-        attackStats.BlackHole = 4;
-        attackStats.Fireball = 3;
+        attackStats.ChaosAura = 0;
+        attackStats.BlackHole = 0;
+        attackStats.Fireball = 0;
 
         axeState.count = 5;
         axeState.active = true;
 
-        fireballState.count = 3;
-        fireballState.active = true;
+        chaosAuraState.active = false;
+        chaosAuraState.sizeMultiplier = 1;
+        chaosAuraState.cooldownMultiplier = 1;
+        chaosAuraState.devMinCooldownMs = null;
+        chaosAuraState.nextPulseAt = 0;
 
-        blackHoleState.count = 4;
-        blackHoleState.active = true;
+        fireballState.count = 0;
+        fireballState.active = false;
+        fireballState.lastCastAt = 0;
+
+        blackHoleState.count = 0;
+        blackHoleState.active = false;
+        blackHoles.length = 0;
 
         player.level = Math.max(player.level, 5);
         pendingPerkChoices.length = 0;
