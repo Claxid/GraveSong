@@ -41,17 +41,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
     let explosionProcessedSprite = null;
     let fireballSkinRects = [];
     let explosionSkinRects = [];
-
-    const HURT_DURATION_MS = 250;
-    const hurtSprite = new Image();
-    hurtSprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier with shadows/Soldier-Hurt.png";
-    let hurtFrames = 1;
-    let hurtUntil = 0;
     const attackVisualScale = 1;
-
-    hurtSprite.addEventListener("load", () => {
-        hurtFrames = Math.max(1, Math.floor(hurtSprite.width / player.frameSize));
-    });
 
     const keys = {};
 
@@ -113,7 +103,8 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         halfAngle: Math.PI / 3,
         Axe: 0,
         Fireball: 0,
-        ChaosAura: 0
+        ChaosAura: 0,
+        BlackHole: 0
     };
     const attackStats = { ...BASE_ATTACK_STATS };
 
@@ -169,14 +160,56 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         knockbackAppliedEnemies: new WeakSet()
     };
 
+    const blackHoleState = {
+        active: false,
+        count: 0,
+        cooldown: 9000,
+        cooldownMultiplier: 1,
+        lastSpawnAt: 0,
+        searchRadius: 760,
+        pullRadius: 140,
+        pullStrength: 2.1,
+        bossPullResistance: 3.6,
+        damageMultiplier: 1,
+        size: 240,
+        minEnemyCount: 3,
+        lifetimeMs: 5000,
+        startDurationMs: 800,
+        loopDurationMs: 3400,
+        endDurationMs: 800,
+        loopFrameDurationMs: 85,
+        damageTickMs: 500,
+        damagePerTick: 2,
+        startFrames: [],
+        loopFrames: [],
+        endFrames: []
+    };
+
     for (let i = 1; i <= 12; i++) {
         const frame = new Image();
         frame.src = `../assets/sprites/Zone/frames/BloodMage_skill2_frame${i}.png`;
         chaosAuraState.frames.push(frame);
     }
 
+    for (let i = 1; i <= 8; i++) {
+        const frame = new Image();
+        frame.src = `../assets/sprites/Trou-noir/part1(start)/frames/BloodMage_skill1_start_frame${i}.png`;
+        blackHoleState.startFrames.push(frame);
+    }
+    for (let i = 1; i <= 5; i++) {
+        const frame = new Image();
+        frame.src = `../assets/sprites/Trou-noir/part2(loop)/frames/BloodMage_skill1_loop_frame${i}.png`;
+        blackHoleState.loopFrames.push(frame);
+    }
+    for (let i = 1; i <= 6; i++) {
+        const frame = new Image();
+        frame.src = `../assets/sprites/Trou-noir/part3(end)/frames/BloodMage_skill1_end_frame${i}.png`;
+        blackHoleState.endFrames.push(frame);
+    }
+
     const fireballs = [];
     const fireballExplosions = [];
+    const blackHoles = [];
 
     function extractSpriteRectsFromSheet(image, { removeNearBlack = true, maxRects = 2, minArea = 24 } = {}) {
         const canvasProbe = document.createElement("canvas");
@@ -403,12 +436,18 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
     const FIREBALL_COUNT_PERK_ID = "fireball_count_up";
     const FIREBALL_COOLDOWN_PERK_ID = "fireball_cooldown_down";
     const FIREBALL_UNLOCK_LEVEL = 6;
+    const BLACK_HOLE_UNLOCK_PERK_ID = "black_hole_unlock";
+    const BLACK_HOLE_COUNT_PERK_ID = "black_hole_count_up";
+    const BLACK_HOLE_DAMAGE_PERK_ID = "black_hole_damage_up";
+    const BLACK_HOLE_COOLDOWN_PERK_ID = "black_hole_cooldown_down";
+    const BLACK_HOLE_UNLOCK_LEVEL = 5;
     const SKILL_PERK_IDS = new Set([
         AXE_PERK_ID,
         CHAOS_AURA_UNLOCK_PERK_ID,
         FIREBALL_UNLOCK_PERK_ID,
         FIREBALL_COUNT_PERK_ID,
-        FIREBALL_COOLDOWN_PERK_ID
+        FIREBALL_COOLDOWN_PERK_ID,
+        BLACK_HOLE_UNLOCK_PERK_ID
     ]);
 
     function isFireballUnlocked() {
@@ -417,6 +456,10 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
 
     function isChaosAuraUnlocked() {
         return (Number(attackStats.ChaosAura) || 0) > 0;
+    }
+
+    function isBlackHoleUnlocked() {
+        return (Number(attackStats.BlackHole) || 0) > 0;
     }
 
     function getChaosAuraRadius() {
@@ -431,19 +474,43 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         return Math.max(250, Math.round(chaosAuraState.cooldown * chaosAuraState.cooldownMultiplier));
     }
 
+    function getBlackHoleCooldownMs() {
+        return Math.max(1800, Math.round(blackHoleState.cooldown * blackHoleState.cooldownMultiplier));
+    }
+
+    function getBlackHolePullRadius() {
+        return blackHoleState.pullRadius;
+    }
+
+    function getBlackHolePullStrength() {
+        return blackHoleState.pullStrength;
+    }
+
+    function getBlackHoleDamagePerTick() {
+        return Math.max(1, Math.round(blackHoleState.damagePerTick * Math.max(1, blackHoleState.damageMultiplier)));
+    }
+
+    function getBlackHoleRenderSize() {
+        return blackHoleState.size;
+    }
+
     const perkPool = [
-        { id: "damage_up", name: "+25% Degats", description: "Vos attaques frappent plus fort.", apply: ({ attackStats: s }) => { s.damage = Math.round(s.damage * 1.25); } },
-        { id: "cooldown_down", name: "-20% Cooldown", description: "Vous attaquez plus souvent.", apply: ({ attackStats: s }) => { s.cooldown = Math.max(250, Math.round(s.cooldown * 0.8)); } },
-        { id: "range_up", name: "+20% Portee", description: "Vous touchez de plus loin.", apply: ({ attackStats: s }) => { s.range = Math.round(s.range * 1.2); } },
-        { id: "arc_up", name: "+15° Angle", description: "Votre attaque devient plus large.", apply: ({ attackStats: s }) => { s.halfAngle = Math.min(Math.PI, s.halfAngle + (Math.PI / 12)); } },
-        { id: "Axe", name: "+1 hache", description: "Vous gagnez une puissante hache.", apply: ({ attackStats: s }) => { s.Axe = (Number(s.Axe) || 0) + 1; } },
-        { id: CHAOS_AURA_UNLOCK_PERK_ID, name: "Aura du chaos", description: "Aura omnipresente autour du joueur.", apply: ({ attackStats: s }) => { s.ChaosAura = Math.max(1, (Number(s.ChaosAura) || 0) + 1); } },
-        { id: CHAOS_AURA_SIZE_PERK_ID, name: "Aura +10% taille", description: "L'aura couvre une plus grande zone.", apply: ({ chaosAuraState: a }) => { a.sizeMultiplier *= 1.1; } },
-        { id: CHAOS_AURA_DAMAGE_PERK_ID, name: "Aura +15% degats", description: "Chaque pulse inflige plus de degats.", apply: ({ chaosAuraState: a }) => { a.damageMultiplier *= 1.15; } },
-        { id: CHAOS_AURA_COOLDOWN_PERK_ID, name: "Aura -10% cooldown", description: "L'aura pulse plus souvent.", apply: ({ chaosAuraState: a }) => { a.cooldownMultiplier *= 0.9; } },
-        { id: FIREBALL_UNLOCK_PERK_ID, name: "Fireball", description: "Vous lancez des fireballs.", apply: ({ attackStats: s }) => { s.Fireball = Math.max(1, (Number(s.Fireball) || 0) + 1); } },
-        { id: FIREBALL_COUNT_PERK_ID, name: "+1 fireball", description: "Lance une fireball supplementaire.", apply: ({ attackStats: s }) => { s.Fireball = (Number(s.Fireball) || 0) + 1; } },
-        { id: FIREBALL_COOLDOWN_PERK_ID, name: "-20% de cooldown fireball", description: "Les fireballs sont lancees plus souvent.", apply: ({ fireballState: f }) => { f.cooldown = Math.max(400, Math.round(f.cooldown * 0.8)); } }
+        { id: "damage_up", name: "Serment sanglant", description: "+25% degats d'attaque.", apply: ({ attackStats: s }) => { s.damage = Math.round(s.damage * 1.25); } },
+        { id: "cooldown_down", name: "Ferveur noire", description: "Attaques 20% plus rapides.", apply: ({ attackStats: s }) => { s.cooldown = Math.max(250, Math.round(s.cooldown * 0.8)); } },
+        { id: "range_up", name: "Lame allongee", description: "+20% de portee.", apply: ({ attackStats: s }) => { s.range = Math.round(s.range * 1.2); } },
+        { id: "arc_up", name: "Croissant maudit", description: "Arc d'attaque +15 degres.", apply: ({ attackStats: s }) => { s.halfAngle = Math.min(Math.PI, s.halfAngle + (Math.PI / 12)); } },
+        { id: "Axe", name: "Hache runique", description: "Ajoute 1 hache orbitale.", apply: ({ attackStats: s }) => { s.Axe = (Number(s.Axe) || 0) + 1; } },
+        { id: CHAOS_AURA_UNLOCK_PERK_ID, name: "Halo profane", description: "Debloque l'aura du chaos.", apply: ({ attackStats: s }) => { s.ChaosAura = Math.max(1, (Number(s.ChaosAura) || 0) + 1); } },
+        { id: CHAOS_AURA_SIZE_PERK_ID, name: "Voile vaste", description: "Aura: +10% de rayon.", apply: ({ chaosAuraState: a }) => { a.sizeMultiplier *= 1.1; } },
+        { id: CHAOS_AURA_DAMAGE_PERK_ID, name: "Brulure astrale", description: "Aura: +15% degats.", apply: ({ chaosAuraState: a }) => { a.damageMultiplier *= 1.15; } },
+        { id: CHAOS_AURA_COOLDOWN_PERK_ID, name: "Pulse interdit", description: "Aura: -10% cooldown.", apply: ({ chaosAuraState: a }) => { a.cooldownMultiplier *= 0.9; } },
+        { id: FIREBALL_UNLOCK_PERK_ID, name: "Braise impie", description: "Debloque les fireballs.", apply: ({ attackStats: s }) => { s.Fireball = Math.max(1, (Number(s.Fireball) || 0) + 1); } },
+        { id: FIREBALL_COUNT_PERK_ID, name: "Salve ardente", description: "Ajoute 1 fireball.", apply: ({ attackStats: s }) => { s.Fireball = (Number(s.Fireball) || 0) + 1; } },
+        { id: FIREBALL_COOLDOWN_PERK_ID, name: "Cendres vives", description: "Fireballs: -20% cooldown.", apply: ({ fireballState: f }) => { f.cooldown = Math.max(400, Math.round(f.cooldown * 0.8)); } },
+        { id: BLACK_HOLE_UNLOCK_PERK_ID, name: "Abyme", description: "Debloque le trou noir (5 s).", apply: ({ attackStats: s }) => { s.BlackHole = Math.max(1, (Number(s.BlackHole) || 0) + 1); } },
+        { id: BLACK_HOLE_COUNT_PERK_ID, name: "Faille jumelle", description: "Ajoute 1 trou noir.", apply: ({ attackStats: s }) => { s.BlackHole = (Number(s.BlackHole) || 0) + 1; } },
+        { id: BLACK_HOLE_DAMAGE_PERK_ID, name: "Gueule obscure", description: "Trou noir: +15% degats.", apply: ({ blackHoleState: b }) => { b.damageMultiplier *= 1.15; } },
+        { id: BLACK_HOLE_COOLDOWN_PERK_ID, name: "Flux du vide", description: "Trou noir: -10% cooldown.", apply: ({ blackHoleState: b }) => { b.cooldownMultiplier *= 0.9; } }
         
 
     ];
@@ -451,13 +518,25 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
     const pendingPerkChoices = [];
 
     function pickRandomPerks(count, forLevel = player.level) {
-        // Level 5: skill perks only, with both base skills available.
+        // Level 5: skill perks only, including black hole unlock.
         if (forLevel === AXE_UNLOCK_LEVEL) {
             const axePerk = perkPool.find((perk) => perk.id === AXE_PERK_ID);
             const chaosAuraPerk = perkPool.find((perk) => perk.id === CHAOS_AURA_UNLOCK_PERK_ID);
             const fireballPerk = perkPool.find((perk) => perk.id === FIREBALL_UNLOCK_PERK_ID);
-            const level5Choices = [axePerk, chaosAuraPerk, fireballPerk].filter(Boolean);
-            return level5Choices.map((perk) => ({ id: perk.id, name: perk.name, description: perk.description }));
+            const blackHolePerk = perkPool.find((perk) => perk.id === BLACK_HOLE_UNLOCK_PERK_ID);
+            const level5Choices = [axePerk, chaosAuraPerk, fireballPerk, blackHolePerk].filter(Boolean);
+
+            const shuffledLevel5 = level5Choices.slice();
+            for (let i = shuffledLevel5.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffledLevel5[i], shuffledLevel5[j]] = [shuffledLevel5[j], shuffledLevel5[i]];
+            }
+
+            return shuffledLevel5.slice(0, Math.min(count, shuffledLevel5.length)).map((perk) => ({
+                id: perk.id,
+                name: perk.name,
+                description: perk.description
+            }));
         }
 
         const regularPerks = perkPool.filter((perk) => {
@@ -468,6 +547,9 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
             if (perk.id === FIREBALL_UNLOCK_PERK_ID && forLevel < FIREBALL_UNLOCK_LEVEL) return false;
             if (perk.id === FIREBALL_UNLOCK_PERK_ID && isFireballUnlocked()) return false;
             if ((perk.id === FIREBALL_COUNT_PERK_ID || perk.id === FIREBALL_COOLDOWN_PERK_ID) && !isFireballUnlocked()) return false;
+            if (perk.id === BLACK_HOLE_UNLOCK_PERK_ID && forLevel < BLACK_HOLE_UNLOCK_LEVEL) return false;
+            if (perk.id === BLACK_HOLE_UNLOCK_PERK_ID && isBlackHoleUnlocked()) return false;
+            if ((perk.id === BLACK_HOLE_COUNT_PERK_ID || perk.id === BLACK_HOLE_DAMAGE_PERK_ID || perk.id === BLACK_HOLE_COOLDOWN_PERK_ID) && !isBlackHoleUnlocked()) return false;
             return true;
         });
 
@@ -515,7 +597,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         if (!choice) return null;
         const perk = perkPool.find((p) => p.id === choice.id);
         if (!perk) return null;
-        perk.apply({ attackStats, fireballState, chaosAuraState });
+        perk.apply({ attackStats, fireballState, chaosAuraState, blackHoleState });
         axeState.count = Math.max(0, Number(attackStats.Axe) || 0);
         axeState.active = axeState.count > 0;
         chaosAuraState.active = isChaosAuraUnlocked();
@@ -526,6 +608,8 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         }
         fireballState.count = Math.max(0, Number(attackStats.Fireball) || 0);
         fireballState.active = fireballState.count > 0;
+        blackHoleState.count = Math.max(0, Number(attackStats.BlackHole) || 0);
+        blackHoleState.active = blackHoleState.count > 0;
         syncDerivedAttackVisualStats();
         return choice.id;
     }
@@ -555,7 +639,183 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
             .map((entry) => entry.enemy);
     }
 
+    function clampEnemyToWorldBounds(enemy) {
+        if (!enemy || !worldBounds || !Number.isFinite(worldBounds.width) || !Number.isFinite(worldBounds.height)) return;
+        const halfW = (Number(enemy.hitW) || 30) / 2;
+        const halfH = (Number(enemy.hitH) || 30) / 2;
+        enemy.x = Math.max(halfW, Math.min(worldBounds.width - halfW, enemy.x));
+        enemy.y = Math.max(halfH, Math.min(worldBounds.height - halfH, enemy.y));
+    }
+
+    function findBlackHoleTargets(enemies, maxTargets) {
+        const alive = enemies.filter((enemy) => {
+            if (!enemy || enemy.hp <= 0) return false;
+            if (enemy.isBoss) return true;
+            const dx = enemy.x - player.x;
+            const dy = enemy.y - player.y;
+            return (dx * dx + dy * dy) <= (blackHoleState.searchRadius * blackHoleState.searchRadius);
+        });
+
+        if (alive.length === 0) return [];
+
+        const hasBoss = alive.some((enemy) => enemy.isBoss);
+        if (!hasBoss && alive.length < blackHoleState.minEnemyCount) return [];
+
+        const clusterRadius = getBlackHolePullRadius() * 1.25;
+        const minCenterDistance = getBlackHolePullRadius() * 0.9;
+        const candidates = [];
+
+        for (const seed of alive) {
+            const group = alive.filter((enemy) => {
+                const dx = enemy.x - seed.x;
+                const dy = enemy.y - seed.y;
+                return (dx * dx + dy * dy) <= (clusterRadius * clusterRadius);
+            });
+
+            let sumX = 0;
+            let sumY = 0;
+            for (const enemy of group) {
+                sumX += enemy.x;
+                sumY += enemy.y;
+            }
+
+            candidates.push({
+                score: group.length,
+                x: sumX / Math.max(1, group.length),
+                y: sumY / Math.max(1, group.length)
+            });
+        }
+
+        candidates.sort((a, b) => b.score - a.score);
+
+        const selected = [];
+        for (const candidate of candidates) {
+            if (selected.length >= maxTargets) break;
+            const tooClose = selected.some((existing) => {
+                const dx = candidate.x - existing.x;
+                const dy = candidate.y - existing.y;
+                return (dx * dx + dy * dy) < (minCenterDistance * minCenterDistance);
+            });
+            if (tooClose) continue;
+            selected.push(candidate);
+        }
+
+        return selected.map((candidate) => ({
+            x: candidate.x,
+            y: candidate.y
+        }));
+    }
+
+    function getBlackHolePullRadiusForEnemy(enemy) {
+        const enemyRadius = Math.max(enemy.hitW || 0, enemy.hitH || 0) / 2;
+        return getBlackHolePullRadius() + enemyRadius;
+    }
+
+    function getBlackHolePullStep(distance, affectRadius, enemy) {
+        const distanceFactor = Math.max(0.85, 1 - (distance / Math.max(1, affectRadius)));
+        const speed = Math.max(0.1, Number(enemy.speed) || 1);
+        const baseResistance = 1 + (speed * 0.9);
+        const bossResistance = enemy && enemy.isBoss ? Math.max(1, blackHoleState.bossPullResistance) : 1;
+        const resistance = baseResistance * bossResistance;
+        return (getBlackHolePullStrength() * distanceFactor) / resistance;
+    }
+
+    function jitterBlackHoleCenter(x, y) {
+        const jitter = Math.min(60, getBlackHolePullRadius() * 0.42);
+        return {
+            x: x + (Math.random() * 2 - 1) * jitter,
+            y: y + (Math.random() * 2 - 1) * jitter
+        };
+    }
+
+    function clampPointToWorldBounds(x, y) {
+        if (!worldBounds || !Number.isFinite(worldBounds.width) || !Number.isFinite(worldBounds.height)) {
+            return { x, y };
+        }
+        const margin = getBlackHoleRenderSize() * 0.55;
+        return {
+            x: Math.max(margin, Math.min(worldBounds.width - margin, x)),
+            y: Math.max(margin, Math.min(worldBounds.height - margin, y))
+        };
+    }
+
+    function spreadBlackHoleTargetsChaotically(targets) {
+        const spread = [];
+        const minGap = getBlackHoleRenderSize() * 0.78;
+
+        for (const target of targets) {
+            let selectedPoint = null;
+
+            for (let attempt = 0; attempt < 20; attempt++) {
+                const angle = Math.random() * Math.PI * 2;
+                const randomRadius = 22 + Math.random() * getBlackHolePullRadius() * 0.92;
+                const chaoticOffsetX = Math.cos(angle) * randomRadius + (Math.random() * 2 - 1) * 30;
+                const chaoticOffsetY = Math.sin(angle) * randomRadius + (Math.random() * 2 - 1) * 30;
+                const candidate = clampPointToWorldBounds(target.x + chaoticOffsetX, target.y + chaoticOffsetY);
+
+                const overlaps = spread.some((p) => {
+                    const dx = candidate.x - p.x;
+                    const dy = candidate.y - p.y;
+                    return (dx * dx + dy * dy) < (minGap * minGap);
+                });
+
+                if (!overlaps) {
+                    selectedPoint = candidate;
+                    break;
+                }
+            }
+
+            if (!selectedPoint) {
+                selectedPoint = clampPointToWorldBounds(target.x, target.y);
+            }
+
+            spread.push(selectedPoint);
+        }
+
+        return spread;
+    }
+
+    function spawnBlackHole(x, y, now) {
+        blackHoles.push({
+            x,
+            y,
+            spawnedAt: now,
+            lastDamageAt: now
+        });
+    }
+
+    function getBlackHoleFrame(blackHole, now) {
+        const elapsed = now - blackHole.spawnedAt;
+        const startEnd = blackHoleState.startDurationMs;
+        const loopEnd = startEnd + blackHoleState.loopDurationMs;
+
+        if (elapsed < startEnd) {
+            const frames = blackHoleState.startFrames;
+            if (!Array.isArray(frames) || frames.length === 0) return null;
+            const phaseProgress = elapsed / Math.max(1, blackHoleState.startDurationMs);
+            const frameIndex = Math.min(frames.length - 1, Math.max(0, Math.floor(phaseProgress * frames.length)));
+            return frames[frameIndex] || null;
+        }
+
+        if (elapsed < loopEnd) {
+            const frames = blackHoleState.loopFrames;
+            if (!Array.isArray(frames) || frames.length === 0) return null;
+            const loopElapsed = elapsed - startEnd;
+            const frameIndex = Math.floor(loopElapsed / Math.max(1, blackHoleState.loopFrameDurationMs)) % frames.length;
+            return frames[frameIndex] || null;
+        }
+
+        const frames = blackHoleState.endFrames;
+        if (!Array.isArray(frames) || frames.length === 0) return null;
+        const phaseProgress = (elapsed - loopEnd) / Math.max(1, blackHoleState.endDurationMs);
+        const frameIndex = Math.min(frames.length - 1, Math.max(0, Math.floor(phaseProgress * frames.length)));
+        return frames[frameIndex] || null;
+    }
+
     function collidesAt(x, y) {
+        const isVilleMap = window.location.pathname.replace(/\\/g, "/").endsWith("/template/ville.html");
+        if (isVilleMap) return false;
+
         if (!Array.isArray(window.obstacles) || typeof window.rectCollision !== "function") return false;
         const hitX = x - player.hitW / 2;
         const hitY = y - player.hitH / 2;
@@ -565,6 +825,19 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
             }
         }
         return false;
+    }
+
+    function clampToWorldBounds(x, y) {
+        if (!worldBounds || !Number.isFinite(worldBounds.width) || !Number.isFinite(worldBounds.height)) {
+            return { x, y };
+        }
+
+        const halfW = player.hitW / 2;
+        const halfH = player.hitH / 2;
+        return {
+            x: Math.max(halfW, Math.min(worldBounds.width - halfW, x)),
+            y: Math.max(halfH, Math.min(worldBounds.height - halfH, y))
+        };
     }
 
     function applyDamageAndKnockback(enemy, damage, sourceX, sourceY, knockbackStrength = 8) {
@@ -770,6 +1043,63 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
             }
         }
 
+        const blackHoleCooldown = getBlackHoleCooldownMs();
+        if (blackHoleState.active && enemies.length > 0 && now - blackHoleState.lastSpawnAt >= blackHoleCooldown) {
+            const blackHoleCount = Math.max(1, Math.min(4, blackHoleState.count));
+            const targets = findBlackHoleTargets(enemies, blackHoleCount);
+            if (targets.length > 0) {
+                const spreadTargets = spreadBlackHoleTargetsChaotically(targets);
+                for (const target of spreadTargets) {
+                    const jittered = jitterBlackHoleCenter(target.x, target.y);
+                    const bounded = clampPointToWorldBounds(jittered.x, jittered.y);
+                    spawnBlackHole(bounded.x, bounded.y, now);
+                }
+                blackHoleState.lastSpawnAt = now;
+            }
+        }
+
+        for (let i = blackHoles.length - 1; i >= 0; i--) {
+            const blackHole = blackHoles[i];
+            const elapsed = now - blackHole.spawnedAt;
+
+            if (elapsed >= blackHoleState.lifetimeMs) {
+                blackHoles.splice(i, 1);
+                continue;
+            }
+
+            for (const enemy of enemies) {
+                if (!enemy || enemy.hp <= 0) continue;
+
+                const dx = blackHole.x - enemy.x;
+                const dy = blackHole.y - enemy.y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 0.0001;
+                const affectRadius = getBlackHolePullRadiusForEnemy(enemy);
+
+                if (dist > affectRadius) continue;
+
+                const nx = dx / dist;
+                const ny = dy / dist;
+                const pullStep = getBlackHolePullStep(dist, affectRadius, enemy);
+
+                enemy.x += nx * pullStep;
+                enemy.y += ny * pullStep;
+                clampEnemyToWorldBounds(enemy);
+            }
+
+            if (now - blackHole.lastDamageAt >= blackHoleState.damageTickMs) {
+                const damagePerTick = getBlackHoleDamagePerTick();
+                for (const enemy of enemies) {
+                    if (!enemy || enemy.hp <= 0) continue;
+                    const dx = enemy.x - blackHole.x;
+                    const dy = enemy.y - blackHole.y;
+                    const affectRadius = getBlackHolePullRadiusForEnemy(enemy);
+                    if ((dx * dx + dy * dy) > (affectRadius * affectRadius)) continue;
+                    enemy.hp = Math.max(0, enemy.hp - damagePerTick);
+                }
+                blackHole.lastDamageAt = now;
+            }
+        }
+
         const fireballDamage = Math.max(1, Math.round(attackStats.damage * fireballState.damageMultiplier));
 
         for (let i = fireballs.length - 1; i >= 0; i--) {
@@ -892,6 +1222,41 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
     }
 
     function drawAttacks() {
+        if (blackHoleState.active) {
+            const now = performance.now();
+            const renderSize = getBlackHoleRenderSize() * camera.zoom;
+
+            for (const blackHole of blackHoles) {
+                const centerX = (blackHole.x - camera.x) * camera.zoom;
+                const centerY = (blackHole.y - camera.y) * camera.zoom;
+                const frame = getBlackHoleFrame(blackHole, now);
+
+                if (frame && frame.complete && frame.naturalWidth > 0) {
+                    ctx.save();
+                    ctx.globalAlpha = 0.92;
+                    ctx.drawImage(
+                        frame,
+                        centerX - renderSize / 2,
+                        centerY - renderSize / 2,
+                        renderSize,
+                        renderSize
+                    );
+                    ctx.restore();
+                } else {
+                    ctx.save();
+                    const gradient = ctx.createRadialGradient(centerX, centerY, renderSize * 0.1, centerX, centerY, renderSize * 0.6);
+                    gradient.addColorStop(0, "rgba(0, 0, 0, 0.85)");
+                    gradient.addColorStop(0.5, "rgba(34, 9, 54, 0.5)");
+                    gradient.addColorStop(1, "rgba(86, 14, 120, 0.05)");
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, renderSize / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+        }
+
         if (chaosAuraState.active) {
             const auraRadius = getChaosAuraRadius();
             const auraSize = auraRadius * 2 * camera.zoom;
@@ -1059,6 +1424,25 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         hurtUntil = performance.now() + HURT_DURATION_MS;
     }
 
+    function applyDevTestLoadout() {
+        attackStats.Axe = 5;
+        attackStats.BlackHole = 4;
+        attackStats.Fireball = 3;
+
+        axeState.count = 5;
+        axeState.active = true;
+
+        fireballState.count = 3;
+        fireballState.active = true;
+
+        blackHoleState.count = 4;
+        blackHoleState.active = true;
+
+        player.level = Math.max(player.level, 5);
+        pendingPerkChoices.length = 0;
+        syncDerivedAttackVisualStats();
+    }
+
     return {
         player,
         update,
@@ -1069,6 +1453,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         hasPendingPerks,
         applyPerkByIndex,
         triggerHurt,
+        applyDevTestLoadout,
         getAttackStats: () => ({ ...attackStats })
     };
 }

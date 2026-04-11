@@ -23,6 +23,12 @@ const enemyControllers = [];
 const potions = [];
 const potionSprite = new Image();
 potionSprite.src = "../assets/sprites/potion/healing_potion.png";
+const bossHpUnderSprite = new Image();
+bossHpUnderSprite.src = "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_under.png";
+const bossHpProgressSprite = new Image();
+bossHpProgressSprite.src = "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_progress.png";
+const bossHpOverSprite = new Image();
+bossHpOverSprite.src = "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_over.png";
 const pnjControllers = [];
 
 const ORC_POTION_DROP_CHANCE = 0.02;
@@ -51,6 +57,10 @@ const BOSS_SPAWN_DELAY_MS = 5 * 60 * 1000;
 
 const CONTACT_DAMAGE = 5;
 const DAMAGE_COOLDOWN_MS = 500;
+const DEATH_CINEMATIC_DURATION_MS = 1800;
+const DEATH_FLASH_IN_MS = 220;
+const DEATH_FLASH_HOLD_MS = 240;
+const DEATH_FLASH_OUT_MS = 460;
 const SHOW_HITBOXES = false;
 const isMap1 = window.location.pathname.replace(/\\/g, "/").endsWith("/template/map1.html");
 const isVilleMap = window.location.pathname.replace(/\\/g, "/").endsWith("/template/ville.html");
@@ -60,6 +70,11 @@ const map1PortalZone = {
     w: 2309 - 2270,
     h: 951 - 895
 };
+const DEV_TEST_COMBO_KEY = "b";
+const nightmareStatueSprite0 = new Image();
+nightmareStatueSprite0.src = "../assets/images/statue_cauchemar(0).png";
+const nightmareStatueSprite1 = new Image();
+nightmareStatueSprite1.src = "../assets/images/statue_cauchemar(1).png";
 let isChangingMap = false;
 let lastContactDamageAt = 0;
 let lastProcessedLevel = playerController.player.level;
@@ -68,6 +83,11 @@ let lastSpawnAt = gameStartAt;
 let killCount = 0;
 let bossSpawned = false;
 let bossDefeated = false;
+let deathCinematic = {
+    active: false,
+    startAt: 0,
+    onComplete: null
+};
 
 function getCssVar(name, fallback) {
     const value = getComputedStyle(canvas).getPropertyValue(name).trim();
@@ -152,6 +172,104 @@ function formatElapsedTime(ms) {
     return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
+function startDeathCinematic(onComplete) {
+    if (deathCinematic.active) return;
+
+    deathCinematic.active = true;
+    deathCinematic.startAt = performance.now();
+    deathCinematic.onComplete = onComplete;
+}
+
+function updateDeathCinematic(now) {
+    if (!deathCinematic.active) return;
+
+    const elapsed = now - deathCinematic.startAt;
+    if (elapsed < DEATH_CINEMATIC_DURATION_MS) return;
+
+    const callback = deathCinematic.onComplete;
+    deathCinematic.active = false;
+    deathCinematic.onComplete = null;
+    if (typeof callback === "function") {
+        callback();
+    }
+}
+
+function drawDeathCinematicOverlay(now) {
+    if (!deathCinematic.active) return;
+
+    const elapsed = now - deathCinematic.startAt;
+    const flashPhase1 = DEATH_FLASH_IN_MS;
+    const flashPhase2 = flashPhase1 + DEATH_FLASH_HOLD_MS;
+    const flashPhase3 = flashPhase2 + DEATH_FLASH_OUT_MS;
+
+    let whiteAlpha = 0;
+    if (elapsed <= flashPhase1) {
+        whiteAlpha = clamp(elapsed / Math.max(1, DEATH_FLASH_IN_MS), 0, 1);
+    } else if (elapsed <= flashPhase2) {
+        whiteAlpha = 1;
+    } else if (elapsed <= flashPhase3) {
+        const fadeT = (elapsed - flashPhase2) / Math.max(1, DEATH_FLASH_OUT_MS);
+        whiteAlpha = 1 - clamp(fadeT, 0, 1);
+    }
+
+    let statueAlpha = 0;
+    if (elapsed > 100) {
+        statueAlpha = clamp((elapsed - 100) / 520, 0, 1);
+        if (elapsed > 950) {
+            const fade = clamp((elapsed - 950) / 850, 0, 1);
+            statueAlpha *= 1 - fade;
+        }
+    }
+    const statue1FadeIn = clamp((elapsed - flashPhase2) / 420, 0, 1);
+    const statue0Alpha = statueAlpha * (1 - statue1FadeIn);
+    const statue1Alpha = statueAlpha * statue1FadeIn;
+
+    const darkness = clamp((elapsed - 280) / 620, 0, 1) * 0.6;
+
+    ctx.save();
+    ctx.fillStyle = `rgba(0, 0, 0, ${darkness.toFixed(3)})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (statueAlpha > 0.001) {
+        const size = Math.min(canvas.width, canvas.height) * 0.5;
+        const x = (canvas.width - size) / 2;
+        const y = (canvas.height - size) / 2;
+
+        const sprite0Ready = nightmareStatueSprite0.complete && nightmareStatueSprite0.naturalWidth > 0;
+        const sprite1Ready = nightmareStatueSprite1.complete && nightmareStatueSprite1.naturalWidth > 0;
+        ctx.imageSmoothingEnabled = false;
+
+        if (sprite0Ready && statue0Alpha > 0.001) {
+            ctx.globalAlpha = statue0Alpha;
+            ctx.drawImage(nightmareStatueSprite0, x, y, size, size);
+        }
+
+        if (sprite1Ready && statue1Alpha > 0.001) {
+            ctx.globalAlpha = statue1Alpha;
+            ctx.drawImage(nightmareStatueSprite1, x, y, size, size);
+        }
+
+        if (!sprite0Ready && !sprite1Ready) {
+            ctx.globalAlpha = statueAlpha;
+            ctx.fillStyle = "rgba(245, 245, 245, 0.9)";
+            ctx.beginPath();
+            ctx.moveTo(canvas.width * 0.5 - size * 0.16, canvas.height * 0.5 + size * 0.24);
+            ctx.lineTo(canvas.width * 0.5 + size * 0.16, canvas.height * 0.5 + size * 0.24);
+            ctx.lineTo(canvas.width * 0.5 + size * 0.13, canvas.height * 0.5 - size * 0.12);
+            ctx.arc(canvas.width * 0.5, canvas.height * 0.5 - size * 0.12, size * 0.13, 0, Math.PI, true);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    if (whiteAlpha > 0.001) {
+        ctx.globalAlpha = whiteAlpha;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    ctx.restore();
+}
+
 function getRandomSpawnAroundPlayer(player) {
     const angle = Math.random() * Math.PI * 2;
     const radius = SPAWN_RING_MIN + Math.random() * (SPAWN_RING_MAX - SPAWN_RING_MIN);
@@ -220,8 +338,8 @@ function createBossController(startX, startY) {
         x: startX,
         y: startY,
         speed: 1.05,
-        hp: 1750,
-        maxhp: 1750,
+        hp: 4200,
+        maxhp: 4200,
         isBoss: true,
         hitW: 90,
         hitH: 90,
@@ -232,10 +350,15 @@ function createBossController(startX, startY) {
         facingAngle: 0,
         attackRange: 230,
         attackHalfAngle: Math.PI / 4,
-        attackDamage: 35,
+        attackDamage: 52,
         attackCooldownMs: 1500,
         attackWindupMs: 700,
         attackDurationMs: 1300,
+        attackQuickChance: 0.38,
+        attackQuickReductionMinMs: 200,
+        attackQuickReductionMaxMs: 300,
+        currentAttackWindupMs: 700,
+        currentAttackDurationMs: 1300,
         lastAttackAt: 0,
         isAttacking: false,
         attackStartedAt: 0,
@@ -272,14 +395,14 @@ function createBossController(startX, startY) {
             enemy.state = "atk";
             const attackElapsed = now - enemy.attackStartedAt;
 
-            if (!enemy.attackHitApplied && attackElapsed >= enemy.attackWindupMs) {
+            if (!enemy.attackHitApplied && attackElapsed >= enemy.currentAttackWindupMs) {
                 if (isPlayerInAttackCone(player)) {
                     player.hp = Math.max(0, player.hp - enemy.attackDamage);
                 }
                 enemy.attackHitApplied = true;
             }
 
-            if (attackElapsed >= enemy.attackDurationMs) {
+            if (attackElapsed >= enemy.currentAttackDurationMs) {
                 enemy.isAttacking = false;
                 enemy.lastAttackAt = now;
                 enemy.state = distance > 120 ? "walk" : "idle";
@@ -292,6 +415,14 @@ function createBossController(startX, startY) {
                 enemy.attackStartedAt = now;
                 enemy.attackHitApplied = false;
                 enemy.lockedAttackAngle = enemy.facingAngle;
+
+                const useQuickAttack = Math.random() < enemy.attackQuickChance;
+                const reductionMs = useQuickAttack
+                    ? enemy.attackQuickReductionMinMs + Math.random() * (enemy.attackQuickReductionMaxMs - enemy.attackQuickReductionMinMs)
+                    : 0;
+                enemy.currentAttackDurationMs = Math.max(900, enemy.attackDurationMs - reductionMs);
+                enemy.currentAttackWindupMs = Math.max(350, enemy.attackWindupMs - reductionMs * 0.6);
+
                 enemy.frameIndex = 0;
                 enemy.animCounter = 0;
             } else if (distance > 120) {
@@ -359,10 +490,113 @@ function spawnBossNearPlayer() {
     enemyControllers.push(createBossController(spawn.x, spawn.y));
 }
 
+function activateDevBossTestMode() {
+    if (!isMap1) return;
+
+    if (typeof playerController.applyDevTestLoadout === "function") {
+        playerController.applyDevTestLoadout();
+    }
+
+    let hasAliveBoss = false;
+    for (let i = enemyControllers.length - 1; i >= 0; i--) {
+        const enemy = enemyControllers[i].enemy;
+        if (enemy && enemy.isBoss && enemy.hp > 0) {
+            hasAliveBoss = true;
+            continue;
+        }
+        if (enemy && !enemy.isBoss) {
+            enemyControllers.splice(i, 1);
+        }
+    }
+
+    if (!hasAliveBoss) {
+        spawnBossNearPlayer();
+    }
+
+    bossSpawned = true;
+    bossDefeated = false;
+    lastSpawnAt = performance.now();
+}
+
 function getMaxEnemyCount(now) {
     const elapsed = now - gameStartAt;
     const growthSteps = Math.floor(elapsed / ENEMY_GROWTH_EVERY_MS);
     return Math.min(ABSOLUTE_MAX_ENEMIES, BASE_MAX_ENEMIES + growthSteps * ENEMIES_PER_GROWTH_STEP);
+}
+
+function getAliveBossEnemy() {
+    for (const enemyController of enemyControllers) {
+        const enemy = enemyController.enemy;
+        if (!enemy || !enemy.isBoss || enemy.hp <= 0) continue;
+        return enemy;
+    }
+    return null;
+}
+
+function drawBossHealthBar(bossEnemy) {
+    if (!bossEnemy) return;
+
+    const hpRatio = clamp(bossEnemy.hp / Math.max(1, bossEnemy.maxhp), 0, 1);
+    const uiReady = bossHpUnderSprite.complete && bossHpProgressSprite.complete && bossHpOverSprite.complete &&
+        bossHpUnderSprite.naturalWidth > 0 && bossHpProgressSprite.naturalWidth > 0 && bossHpOverSprite.naturalWidth > 0;
+
+    const targetWidth = Math.min(canvas.width * 0.31, 380);
+    const targetHeight = targetWidth * (bossHpUnderSprite.naturalHeight / Math.max(1, bossHpUnderSprite.naturalWidth));
+    const x = (canvas.width - targetWidth) / 2;
+    const y = 14;
+
+    if (uiReady) {
+        ctx.drawImage(bossHpUnderSprite, x, y, targetWidth, targetHeight);
+
+        const fullSourceWidth = bossHpProgressSprite.naturalWidth;
+        const sourceHeight = bossHpProgressSprite.naturalHeight;
+        const filledSourceWidth = Math.max(0, Math.floor(fullSourceWidth * hpRatio));
+        const progressInset = Math.max(3, Math.round(targetHeight * 0.09));
+        const progressX = Math.round(x + progressInset);
+        const progressY = Math.round(y + progressInset);
+        const progressW = Math.max(0, Math.floor(targetWidth - progressInset * 2));
+        const progressH = Math.max(0, Math.floor(targetHeight - progressInset * 2));
+        const safetyPx = 2;
+        const maxFillWidth = Math.max(0, progressW - safetyPx);
+        const filledTargetWidth = Math.max(0, Math.floor(maxFillWidth * hpRatio));
+
+        if (filledSourceWidth > 0 && filledTargetWidth > 0 && progressH > 0) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(progressX, progressY, Math.max(0, progressW - safetyPx), progressH);
+            ctx.clip();
+            ctx.drawImage(
+                bossHpProgressSprite,
+                0,
+                0,
+                filledSourceWidth,
+                sourceHeight,
+                progressX,
+                progressY,
+                filledTargetWidth,
+                progressH
+            );
+            ctx.restore();
+        }
+
+        ctx.drawImage(bossHpOverSprite, x, y, targetWidth, targetHeight);
+    } else {
+        const fallbackH = 24;
+        const fallbackY = y + (targetHeight - fallbackH) / 2;
+        ctx.fillStyle = "rgba(35, 12, 12, 0.9)";
+        ctx.fillRect(x, fallbackY, targetWidth, fallbackH);
+        ctx.fillStyle = "rgba(196, 56, 56, 0.95)";
+        ctx.fillRect(x, fallbackY, targetWidth * hpRatio, fallbackH);
+        ctx.strokeStyle = "rgba(240, 205, 120, 0.9)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, fallbackY, targetWidth, fallbackH);
+    }
+
+    ctx.fillStyle = "#f3e9c5";
+    ctx.font = "bold 16px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.fillText(`Minotaure ${Math.max(0, Math.ceil(bossEnemy.hp))}/${bossEnemy.maxhp}`, canvas.width / 2, y - 6);
 }
 
 function getSpawnInterval(now) {
@@ -414,6 +648,14 @@ window.addEventListener("keydown", (e) => {
     }
 });
 
+window.addEventListener("keydown", (e) => {
+    const key = String(e.key || "").toLowerCase();
+    if (!(e.ctrlKey && e.shiftKey && key === DEV_TEST_COMBO_KEY)) return;
+
+    e.preventDefault();
+    activateDevBossTestMode();
+});
+
 canvas.addEventListener("click", (e) => {
     const choices = playerController.getCurrentPerkChoices();
     if (!choices) return;
@@ -463,7 +705,10 @@ window.addEventListener("resize", () => {
 
 // Boucle du jeu
 function loop() {
-    const canUpdateWorld = !playerController.hasPendingPerks();
+    const now = performance.now();
+    updateDeathCinematic(now);
+
+    const canUpdateWorld = !playerController.hasPendingPerks() && !deathCinematic.active;
 
     // ── UPDATES ──────────────────────────────────────────
     if (canUpdateWorld) {
@@ -472,8 +717,6 @@ function loop() {
     }
 
     if (canUpdateWorld && isMap1) {
-        const now = performance.now();
-
         if (!bossSpawned && !bossDefeated && now - gameStartAt >= BOSS_SPAWN_DELAY_MS) {
             spawnBossNearPlayer();
             bossSpawned = true;
@@ -592,15 +835,17 @@ function loop() {
     }
 
     if (playerController.player.hp <= 0) {
-        if (!isVilleMap && !isChangingMap) {
-            isChangingMap = true;
-            window.location.href = "ville.html";
-            return;
-        }
-        playerController.player.x = playerController.player.spawnX;
-        playerController.player.y = playerController.player.spawnY;
-        playerController.player.hp = playerController.player.maxHp;
-        lastContactDamageAt = performance.now();
+        startDeathCinematic(() => {
+            if (!isVilleMap && !isChangingMap) {
+                isChangingMap = true;
+                window.location.href = "ville.html";
+                return;
+            }
+            playerController.player.x = playerController.player.spawnX;
+            playerController.player.y = playerController.player.spawnY;
+            playerController.player.hp = playerController.player.maxHp;
+            lastContactDamageAt = performance.now();
+        });
     }
 
     // CAMERA
@@ -741,12 +986,19 @@ function loop() {
         ctx.textAlign = "right";
         ctx.textBaseline = "top";
         ctx.fillText(`Temps : ${elapsedTime}`, canvas.width - uiStyles.timerOffsetRight, uiStyles.timerOffsetTop);
+
+        const aliveBoss = getAliveBossEnemy();
+        if (aliveBoss) {
+            drawBossHealthBar(aliveBoss);
+        }
     }
 
     const perkChoices = playerController.getCurrentPerkChoices();
     if (perkChoices) {
         drawPerkOverlay(perkChoices);
     }
+
+    drawDeathCinematicOverlay(now);
 
     requestAnimationFrame(loop);
 }
