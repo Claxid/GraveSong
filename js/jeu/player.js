@@ -813,9 +813,6 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
     }
 
     function collidesAt(x, y) {
-        const isVilleMap = window.location.pathname.replace(/\\/g, "/").endsWith("/template/ville.html");
-        if (isVilleMap) return false;
-
         if (!Array.isArray(window.obstacles) || typeof window.rectCollision !== "function") return false;
         const hitX = x - player.hitW / 2;
         const hitY = y - player.hitH / 2;

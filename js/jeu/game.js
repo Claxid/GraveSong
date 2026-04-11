@@ -57,10 +57,14 @@ const BOSS_SPAWN_DELAY_MS = 5 * 60 * 1000;
 
 const CONTACT_DAMAGE = 5;
 const DAMAGE_COOLDOWN_MS = 500;
-const DEATH_CINEMATIC_DURATION_MS = 1800;
-const DEATH_FLASH_IN_MS = 220;
-const DEATH_FLASH_HOLD_MS = 240;
-const DEATH_FLASH_OUT_MS = 460;
+const DEATH_CINEMATIC_DURATION_MS = 3200;
+const DEATH_FLASH_IN_MS = 420;
+const DEATH_FLASH_HOLD_MS = 280;
+const DEATH_FLASH_OUT_MS = 900;
+const DEATH_FLASH_INTENSITY = 0.62;
+const DEATH_STATUE_SCALE = 0.78;
+const DEATH_STATUE1_OFFSET_X = 0;
+const DEATH_STATUE1_OFFSET_Y = -0.04;
 const SHOW_HITBOXES = false;
 const isMap1 = window.location.pathname.replace(/\\/g, "/").endsWith("/template/map1.html");
 const isVilleMap = window.location.pathname.replace(/\\/g, "/").endsWith("/template/ville.html");
@@ -198,13 +202,14 @@ function drawDeathCinematicOverlay(now) {
     if (!deathCinematic.active) return;
 
     const elapsed = now - deathCinematic.startAt;
-    const flashPhase1 = DEATH_FLASH_IN_MS;
+    const flashStartAt = 1200;
+    const flashPhase1 = flashStartAt + DEATH_FLASH_IN_MS;
     const flashPhase2 = flashPhase1 + DEATH_FLASH_HOLD_MS;
     const flashPhase3 = flashPhase2 + DEATH_FLASH_OUT_MS;
 
     let whiteAlpha = 0;
-    if (elapsed <= flashPhase1) {
-        whiteAlpha = clamp(elapsed / Math.max(1, DEATH_FLASH_IN_MS), 0, 1);
+    if (elapsed >= flashStartAt && elapsed <= flashPhase1) {
+        whiteAlpha = clamp((elapsed - flashStartAt) / Math.max(1, DEATH_FLASH_IN_MS), 0, 1);
     } else if (elapsed <= flashPhase2) {
         whiteAlpha = 1;
     } else if (elapsed <= flashPhase3) {
@@ -212,45 +217,49 @@ function drawDeathCinematicOverlay(now) {
         whiteAlpha = 1 - clamp(fadeT, 0, 1);
     }
 
-    let statueAlpha = 0;
-    if (elapsed > 100) {
-        statueAlpha = clamp((elapsed - 100) / 520, 0, 1);
-        if (elapsed > 950) {
-            const fade = clamp((elapsed - 950) / 850, 0, 1);
-            statueAlpha *= 1 - fade;
-        }
-    }
-    const statue1FadeIn = clamp((elapsed - flashPhase2) / 420, 0, 1);
-    const statue0Alpha = statueAlpha * (1 - statue1FadeIn);
-    const statue1Alpha = statueAlpha * statue1FadeIn;
+    const statue0BaseAlpha = clamp(elapsed / 520, 0, 1);
+    const statue1FadeIn = clamp((elapsed - flashPhase2) / 760, 0, 1);
+    const statue0Alpha = statue0BaseAlpha * (1 - statue1FadeIn);
+    const statue1Alpha = statue1FadeIn;
 
-    const darkness = clamp((elapsed - 280) / 620, 0, 1) * 0.6;
+    const darkness = clamp((elapsed - 500) / 1200, 0, 1) * 0.45;
 
     ctx.save();
     ctx.fillStyle = `rgba(0, 0, 0, ${darkness.toFixed(3)})`;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    if (statueAlpha > 0.001) {
-        const size = Math.min(canvas.width, canvas.height) * 0.5;
-        const x = (canvas.width - size) / 2;
-        const y = (canvas.height - size) / 2;
-
-        const sprite0Ready = nightmareStatueSprite0.complete && nightmareStatueSprite0.naturalWidth > 0;
-        const sprite1Ready = nightmareStatueSprite1.complete && nightmareStatueSprite1.naturalWidth > 0;
-        ctx.imageSmoothingEnabled = false;
-
-        if (sprite0Ready && statue0Alpha > 0.001) {
-            ctx.globalAlpha = statue0Alpha;
-            ctx.drawImage(nightmareStatueSprite0, x, y, size, size);
+    function drawFittedImage(image, alpha, offsetXRatio = 0, offsetYRatio = 0) {
+        if (!image || !image.complete || image.naturalWidth <= 0 || image.naturalHeight <= 0 || alpha <= 0.001) {
+            return false;
         }
 
-        if (sprite1Ready && statue1Alpha > 0.001) {
-            ctx.globalAlpha = statue1Alpha;
-            ctx.drawImage(nightmareStatueSprite1, x, y, size, size);
+        const scale = Math.min(canvas.width / image.naturalWidth, canvas.height / image.naturalHeight) * DEATH_STATUE_SCALE;
+        const drawW = image.naturalWidth * scale;
+        const drawH = image.naturalHeight * scale;
+        const drawX = (canvas.width - drawW) / 2 + offsetXRatio * canvas.width;
+        const drawY = (canvas.height - drawH) / 2 + offsetYRatio * canvas.height;
+        ctx.globalAlpha = alpha;
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(image, drawX, drawY, drawW, drawH);
+        return true;
+    }
+
+    if (statue0Alpha > 0.001 || statue1Alpha > 0.001) {
+        const sprite0Ready = nightmareStatueSprite0.complete && nightmareStatueSprite0.naturalWidth > 0;
+        const sprite1Ready = nightmareStatueSprite1.complete && nightmareStatueSprite1.naturalWidth > 0;
+
+        if (sprite0Ready) {
+            drawFittedImage(nightmareStatueSprite0, statue0Alpha, 0, 0);
+        }
+
+        if (sprite1Ready) {
+            drawFittedImage(nightmareStatueSprite1, statue1Alpha, DEATH_STATUE1_OFFSET_X, DEATH_STATUE1_OFFSET_Y);
         }
 
         if (!sprite0Ready && !sprite1Ready) {
-            ctx.globalAlpha = statueAlpha;
+            const fallbackAlpha = Math.max(statue0Alpha, statue1Alpha);
+            const size = Math.min(canvas.width, canvas.height) * 0.6;
+            ctx.globalAlpha = fallbackAlpha;
             ctx.fillStyle = "rgba(245, 245, 245, 0.9)";
             ctx.beginPath();
             ctx.moveTo(canvas.width * 0.5 - size * 0.16, canvas.height * 0.5 + size * 0.24);
@@ -263,7 +272,7 @@ function drawDeathCinematicOverlay(now) {
     }
 
     if (whiteAlpha > 0.001) {
-        ctx.globalAlpha = whiteAlpha;
+        ctx.globalAlpha = whiteAlpha * DEATH_FLASH_INTENSITY;
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
@@ -592,11 +601,6 @@ function drawBossHealthBar(bossEnemy) {
         ctx.strokeRect(x, fallbackY, targetWidth, fallbackH);
     }
 
-    ctx.fillStyle = "#f3e9c5";
-    ctx.font = "bold 16px Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "bottom";
-    ctx.fillText(`Minotaure ${Math.max(0, Math.ceil(bossEnemy.hp))}/${bossEnemy.maxhp}`, canvas.width / 2, y - 6);
 }
 
 function getSpawnInterval(now) {
@@ -922,9 +926,11 @@ function loop() {
         ctx.restore();
     }
 
-    // HUD - Barre de vie (bas gauche)
+    // HUD - PV a gauche, aligne sur le meme niveau que l'XP
+    const hudBottomY = canvas.height - uiStyles.expOffsetTop;
+    const expBarHeight = uiStyles.expBarHeight;
     const barX = uiStyles.hpOffsetLeft;
-    const barY = canvas.height - uiStyles.hpOffsetBottom;
+    const barY = hudBottomY - expBarHeight;
     const barWidth = uiStyles.hpBarWidth;
     const barHeight = uiStyles.hpBarHeight;
     const hpRatio = playerController.player.hp / playerController.player.maxHp;
@@ -947,11 +953,10 @@ function loop() {
     ctx.textBaseline = "middle";
     ctx.fillText(`${playerController.player.hp}/${playerController.player.maxHp}`, barX + barWidth / 2, barY + barHeight / 2);
 
-    // HUD - Barre d'expérience (haut centre)
+    // HUD - Barre d'experience (bas centre)
     const expBarWidth = uiStyles.expBarWidth;
-    const expBarHeight = uiStyles.expBarHeight;
     const expBarX = (canvas.width / 2) - (expBarWidth / 2);
-    const expBarY = uiStyles.expOffsetTop;
+    const expBarY = hudBottomY - expBarHeight;
     const expRatio = playerController.player.exp / playerController.player.maxExp;
 
     ctx.fillStyle = uiStyles.expBorderColor;
