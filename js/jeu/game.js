@@ -15,10 +15,19 @@ resizeCanvas();
 // Je crée les contrôleurs pour la map, la caméra, le joueur et l'ennemi.
 const mapRenderer = createMapRenderer(canvas, ctx);
 const cameraController = createCameraController(canvas, mapRenderer.MAP_WIDTH, mapRenderer.MAP_HEIGHT);
-const playerController = createPlayerController(canvas, ctx, cameraController.camera);
+const playerController = createPlayerController(canvas, ctx, cameraController.camera, {
+    width: mapRenderer.MAP_WIDTH,
+    height: mapRenderer.MAP_HEIGHT
+});
 const enemyControllers = [];
+const potions = [];
+const potionSprite = new Image();
+potionSprite.src = "../assets/sprites/potion/healing_potion.png";
 const pnjControllers = [];
 
+const ORC_POTION_DROP_CHANCE = 0.02;
+const ORC3_POTION_DROP_CHANCE = 0.04;
+const POTION_HEAL_AMOUNT = 15;
 const SPAWN_RING_MIN = 500;
 const SPAWN_RING_MAX = 700;
 const BASE_SPAWN_INTERVAL_MS = 2200;
@@ -28,7 +37,7 @@ const SPAWN_INTERVAL_DECAY_EVERY_MS = 15000;
 const BASE_SPAWN_BATCH_SIZE = 1;
 const MAX_SPAWN_BATCH_SIZE = 4;
 const SPAWN_BATCH_GROWTH_EVERY_MS = 30000;
-const INITIAL_ENEMY_COUNT = 5;
+const INITIAL_ENEMY_COUNT = 4;
 const BASE_MAX_ENEMIES = 7;
 const ENEMY_GROWTH_EVERY_MS = 20000;
 const ENEMIES_PER_GROWTH_STEP = 3;
@@ -38,6 +47,7 @@ const ENEMY_SPAWN_WEIGHTS = [
     { type: "orc", weight: 95 },
     { type: "orc3", weight: 5 }
 ];
+const BOSS_SPAWN_DELAY_MS = 5 * 60 * 1000;
 
 const CONTACT_DAMAGE = 5;
 const DAMAGE_COOLDOWN_MS = 500;
@@ -56,6 +66,8 @@ let lastProcessedLevel = playerController.player.level;
 let gameStartAt = performance.now();
 let lastSpawnAt = gameStartAt;
 let killCount = 0;
+let bossSpawned = false;
+let bossDefeated = false;
 
 function getCssVar(name, fallback) {
     const value = getComputedStyle(canvas).getPropertyValue(name).trim();
@@ -92,6 +104,11 @@ function readUiStyles() {
         killOffsetRight: getCssNumber("--hud-kill-offset-right", 20),
         killOffsetTop: getCssNumber("--hud-kill-offset-top", 20),
 
+        timerTextColor: getCssVar("--hud-timer-text-color", "#fff"),
+        timerFont: getCssVar("--hud-timer-font", "bold 18px Arial"),
+        timerOffsetRight: getCssNumber("--hud-timer-offset-right", 20),
+        timerOffsetTop: getCssNumber("--hud-timer-offset-top", 50),
+
         hitboxPlayerColor: getCssVar("--hitbox-player-color", "#00ff00"),
         hitboxEnemyColor: getCssVar("--hitbox-enemy-color", "#ff0000"),
 
@@ -126,6 +143,13 @@ let uiStyles = readUiStyles();
 
 function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
+}
+
+function formatElapsedTime(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function getRandomSpawnAroundPlayer(player) {
@@ -165,6 +189,174 @@ function spawnEnemyNearPlayer() {
 
 function spawnPnj(x, y) {
     pnjControllers.push(createpnjController(canvas, ctx, cameraController.camera, x, y));
+}
+
+function createBossController(startX, startY) {
+    function normalizeAngle(angle) {
+        while (angle > Math.PI) angle -= Math.PI * 2;
+        while (angle < -Math.PI) angle += Math.PI * 2;
+        return angle;
+    }
+
+    function loadFrames(folder, prefix, count) {
+        const frames = [];
+        for (let i = 1; i <= count; i++) {
+            const frame = new Image();
+            frame.src = `../assets/sprites/mino_v1.1_free/animations/${folder}/${prefix}_${i}.png`;
+            frames.push(frame);
+        }
+        return frames;
+    }
+
+    const frames = {
+        idle: loadFrames("idle", "idle", 16),
+        walk: loadFrames("walk", "walk", 12),
+        atk: loadFrames("atk_1", "atk_1", 16)
+    };
+
+    const enemy = {
+        spawnX: startX,
+        spawnY: startY,
+        x: startX,
+        y: startY,
+        speed: 1.05,
+        hp: 1750,
+        maxhp: 1750,
+        isBoss: true,
+        hitW: 90,
+        hitH: 90,
+        state: "walk",
+        frameIndex: 0,
+        animCounter: 0,
+        animSpeed: 8,
+        facingAngle: 0,
+        attackRange: 230,
+        attackHalfAngle: Math.PI / 4,
+        attackDamage: 35,
+        attackCooldownMs: 1500,
+        attackWindupMs: 700,
+        attackDurationMs: 1300,
+        lastAttackAt: 0,
+        isAttacking: false,
+        attackStartedAt: 0,
+        attackHitApplied: false,
+        lockedAttackAngle: 0
+    };
+
+    function isPlayerInAttackCone(player) {
+        const dx = player.x - enemy.x;
+        const dy = player.y - enemy.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance > enemy.attackRange) return false;
+
+        const angleToPlayer = Math.atan2(dy, dx);
+        const delta = Math.abs(normalizeAngle(angleToPlayer - enemy.lockedAttackAngle));
+        return delta <= enemy.attackHalfAngle;
+    }
+
+    function update(player) {
+        if (enemy.hp <= 0) return;
+
+        const previousState = enemy.state;
+
+        const dx = player.x - enemy.x;
+        const dy = player.y - enemy.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance > 0 && !enemy.isAttacking) {
+            enemy.facingAngle = Math.atan2(dy, dx);
+        }
+
+        const now = performance.now();
+        if (enemy.isAttacking) {
+            enemy.state = "atk";
+            const attackElapsed = now - enemy.attackStartedAt;
+
+            if (!enemy.attackHitApplied && attackElapsed >= enemy.attackWindupMs) {
+                if (isPlayerInAttackCone(player)) {
+                    player.hp = Math.max(0, player.hp - enemy.attackDamage);
+                }
+                enemy.attackHitApplied = true;
+            }
+
+            if (attackElapsed >= enemy.attackDurationMs) {
+                enemy.isAttacking = false;
+                enemy.lastAttackAt = now;
+                enemy.state = distance > 120 ? "walk" : "idle";
+            }
+        } else {
+            const canStartAttack = distance <= enemy.attackRange && now - enemy.lastAttackAt >= enemy.attackCooldownMs;
+            if (canStartAttack) {
+                enemy.isAttacking = true;
+                enemy.state = "atk";
+                enemy.attackStartedAt = now;
+                enemy.attackHitApplied = false;
+                enemy.lockedAttackAngle = enemy.facingAngle;
+                enemy.frameIndex = 0;
+                enemy.animCounter = 0;
+            } else if (distance > 120) {
+                enemy.state = "walk";
+                if (distance > 0) {
+                    enemy.x += (dx / distance) * enemy.speed;
+                    enemy.y += (dy / distance) * enemy.speed;
+                }
+            } else {
+                enemy.state = "idle";
+            }
+        }
+
+        if (enemy.state !== previousState) {
+            enemy.frameIndex = 0;
+            enemy.animCounter = 0;
+        }
+
+        enemy.animCounter++;
+        if (enemy.animCounter >= enemy.animSpeed) {
+            enemy.animCounter = 0;
+            const currentFrames = frames[enemy.state];
+            enemy.frameIndex = (enemy.frameIndex + 1) % currentFrames.length;
+        }
+    }
+
+    function draw() {
+        const currentFrames = frames[enemy.state];
+        const sprite = currentFrames[enemy.frameIndex] || currentFrames[0];
+        if (!sprite) return;
+        const size = 330 * cameraController.camera.zoom;
+        const centerX = (enemy.x - cameraController.camera.x) * cameraController.camera.zoom;
+        const centerY = (enemy.y - cameraController.camera.y) * cameraController.camera.zoom;
+
+        if (enemy.isAttacking) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.arc(
+                centerX,
+                centerY,
+                enemy.attackRange * cameraController.camera.zoom,
+                enemy.lockedAttackAngle - enemy.attackHalfAngle,
+                enemy.lockedAttackAngle + enemy.attackHalfAngle
+            );
+            ctx.closePath();
+            ctx.fillStyle = enemy.attackHitApplied ? "rgba(220, 40, 40, 0.18)" : "rgba(255, 60, 60, 0.3)";
+            ctx.fill();
+            ctx.strokeStyle = "rgba(255, 100, 100, 0.8)";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        const drawX = (enemy.x - cameraController.camera.x) * cameraController.camera.zoom - size / 2;
+        const drawY = (enemy.y - cameraController.camera.y) * cameraController.camera.zoom - size / 2;
+        ctx.drawImage(sprite, drawX, drawY, size, size);
+    }
+
+    return { enemy, update, draw };
+}
+
+function spawnBossNearPlayer() {
+    const spawn = getRandomSpawnAroundPlayer(playerController.player);
+    enemyControllers.push(createBossController(spawn.x, spawn.y));
 }
 
 function getMaxEnemyCount(now) {
@@ -281,11 +473,22 @@ function loop() {
 
     if (canUpdateWorld && isMap1) {
         const now = performance.now();
+
+        if (!bossSpawned && !bossDefeated && now - gameStartAt >= BOSS_SPAWN_DELAY_MS) {
+            spawnBossNearPlayer();
+            bossSpawned = true;
+
+            for (let i = enemyControllers.length - 1; i >= 0; i--) {
+                if (enemyControllers[i].enemy.isBoss) continue;
+                enemyControllers.splice(i, 1);
+            }
+        }
+
         const maxEnemies = getMaxEnemyCount(now);
         const spawnInterval = getSpawnInterval(now);
         const spawnBatchSize = getSpawnBatchSize(now);
 
-        if (enemyControllers.length < maxEnemies && now - lastSpawnAt >= spawnInterval) {
+        if (!bossSpawned && enemyControllers.length < maxEnemies && now - lastSpawnAt >= spawnInterval) {
             const availableSlots = maxEnemies - enemyControllers.length;
             const spawnCount = Math.min(spawnBatchSize, availableSlots);
             for (let i = 0; i < spawnCount; i++) spawnEnemyNearPlayer();
@@ -294,11 +497,39 @@ function loop() {
 
         for (const ec of enemyControllers) ec.update(playerController.player);
 
+        let bossDiedThisFrame = false;
         for (let i = enemyControllers.length - 1; i >= 0; i--) {
             if (enemyControllers[i].enemy.hp > 0) continue;
+
+            const deadEnemy = enemyControllers[i].enemy;
+            if (deadEnemy.isBoss) {
+                bossDiedThisFrame = true;
+            } else {
+                const deadX = deadEnemy.x;
+                const deadY = deadEnemy.y;
+                const potionDropChance = deadEnemy.type === "orc3"
+                    ? ORC3_POTION_DROP_CHANCE
+                    : ORC_POTION_DROP_CHANCE;
+
+                if (Math.random() < potionDropChance) {
+                    potions.push({
+                        x: deadX,
+                        y: deadY,
+                        w: 32,
+                        h: 32,
+                        healAmount: POTION_HEAL_AMOUNT
+                    });
+                }
+            }
             enemyControllers.splice(i, 1);
             killCount += 1;
             givePlayerExp(ENEMY_KILL_EXP);
+        }
+
+        if (bossDiedThisFrame) {
+            bossSpawned = false;
+            bossDefeated = true;
+            lastSpawnAt = now;
         }
     }
 
@@ -308,24 +539,32 @@ function loop() {
     }
 
     if (playerController.player.level > lastProcessedLevel) {
-        const currentLevel = playerController.player.level;
-
-        for (let level = lastProcessedLevel + 1; level <= currentLevel; level++) {
-            if (level % 5 === 0) {
-                // Palier de niveau: proposer une competence seulement s'il y en a une a debloquer.
-                const skillQueued = playerController.queuePerkChoices(1, true, level);
-                if (!skillQueued) {
-                    playerController.queuePerkChoices(1, false, level);
-                }
-            } else {
-                playerController.queuePerkChoices(1, false, level);
-            }
-        }
-
-        lastProcessedLevel = currentLevel;
+        const gainedLevels = playerController.player.level - lastProcessedLevel;
+        playerController.queuePerkChoices(gainedLevels);
+        lastProcessedLevel = playerController.player.level;
     }
 
     const playerHitbox = getEntityHitbox(playerController.player);
+
+    if (canUpdateWorld) {
+        for (let i = potions.length - 1; i >= 0; i--) {
+            const potion = potions[i];
+            const potionHitbox = {
+                x: potion.x - potion.w / 2,
+                y: potion.y - potion.h / 2,
+                w: potion.w,
+                h: potion.h
+            };
+
+            if (!isRectOverlap(playerHitbox, potionHitbox)) continue;
+
+            playerController.player.hp = Math.min(
+                playerController.player.maxHp,
+                playerController.player.hp + potion.healAmount
+            );
+            potions.splice(i, 1);
+        }
+    }
 
     if (isVilleMap && !isChangingMap && isRectOverlap(playerHitbox, map1PortalZone)) {
         isChangingMap = true;
@@ -335,13 +574,17 @@ function loop() {
 
     if (canUpdateWorld) {
         let touchingEnemy = false;
+        let contactDamage = CONTACT_DAMAGE;
         for (const ec of enemyControllers) {
-            if (isRectOverlap(playerHitbox, getEntityHitbox(ec.enemy))) { touchingEnemy = true; break; }
+            if (ec.enemy.isBoss) continue;
+            if (!isRectOverlap(playerHitbox, getEntityHitbox(ec.enemy))) continue;
+            touchingEnemy = true;
+            contactDamage = Math.max(contactDamage, ec.enemy.contactDamage || CONTACT_DAMAGE);
         }
         if (touchingEnemy) {
             const now = performance.now();
             if (now - lastContactDamageAt >= DAMAGE_COOLDOWN_MS) {
-                playerController.player.hp = Math.max(0, playerController.player.hp - CONTACT_DAMAGE);
+                playerController.player.hp = Math.max(0, playerController.player.hp - contactDamage);
                 playerController.triggerHurt();
                 lastContactDamageAt = now;
             }
@@ -380,6 +623,26 @@ function loop() {
     // ATTAQUES
     playerController.drawAttacks();
 
+    // POTIONS (dessinees avant les ennemis => derriere eux)
+    for (const potion of potions) {
+        const size = 55 * cameraController.camera.zoom;
+        const drawX = (potion.x - cameraController.camera.x) * cameraController.camera.zoom - size / 2;
+        const drawY = (potion.y - cameraController.camera.y) * cameraController.camera.zoom - size / 2;
+
+        if (potionSprite.complete) {
+            ctx.drawImage(
+                potionSprite,
+                drawX,
+                drawY,
+                size,
+                size
+            );
+        } else {
+            ctx.fillStyle = "red";
+            ctx.fillRect(drawX, drawY, size, size);
+        }
+    }
+
     // ENNEMIS
     for (const enemyController of enemyControllers) {
         enemyController.draw();
@@ -414,7 +677,7 @@ function loop() {
         ctx.restore();
     }
 
-    // HUD (HP)
+    // HUD - Barre de vie (bas gauche)
     const barX = uiStyles.hpOffsetLeft;
     const barY = canvas.height - uiStyles.hpOffsetBottom;
     const barWidth = uiStyles.hpBarWidth;
@@ -433,7 +696,13 @@ function loop() {
     ctx.fillStyle = uiStyles.hpFillColor;
     ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
 
-    // HUD (EXP)
+    ctx.fillStyle = uiStyles.levelTextColor;
+    ctx.font = uiStyles.levelFont;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`${playerController.player.hp}/${playerController.player.maxHp}`, barX + barWidth / 2, barY + barHeight / 2);
+
+    // HUD - Barre d'expérience (haut centre)
     const expBarWidth = uiStyles.expBarWidth;
     const expBarHeight = uiStyles.expBarHeight;
     const expBarX = (canvas.width / 2) - (expBarWidth / 2);
@@ -464,6 +733,15 @@ function loop() {
     ctx.textAlign = "right";
     ctx.textBaseline = "top";
     ctx.fillText(`Kills : ${killCount}`, canvas.width - uiStyles.killOffsetRight, uiStyles.killOffsetTop);
+
+    if (isMap1) {
+        const elapsedTime = formatElapsedTime(performance.now() - gameStartAt);
+        ctx.fillStyle = uiStyles.timerTextColor;
+        ctx.font = uiStyles.timerFont;
+        ctx.textAlign = "right";
+        ctx.textBaseline = "top";
+        ctx.fillText(`Temps : ${elapsedTime}`, canvas.width - uiStyles.timerOffsetRight, uiStyles.timerOffsetTop);
+    }
 
     const perkChoices = playerController.getCurrentPerkChoices();
     if (perkChoices) {

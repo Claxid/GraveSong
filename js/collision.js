@@ -1,6 +1,3 @@
-// Analyse automatique de l'image de la ville pour générer des colliders de toits et de bordures
-// Les obstacles sont stockés dans window.obstacles et utilisés par le joueur/ennemis pour éviter les murs.
-
 window.obstacles = [];
 
 const MAP_IMAGE_SRC = "../assets/images/Ville.png";
@@ -178,6 +175,10 @@ function analyzeMapImage() {
         const rects = pixelsToRects(dilated, width, height);
 
         const bridgeClear = { x: 2250, y: 700, w: 100, h: 950 };
+        const bridgeSideBlocks = [
+            { x: 2238, y: 830, w: 34, h: 300 },
+            { x: 2310, y: 830, w: 40, h: 300 }
+        ];
         const filteredRects = rects
             .filter((r) => r.w >= 1 && r.h >= 1)
             .filter((o) => {
@@ -192,6 +193,8 @@ function analyzeMapImage() {
             { x: 0, y: 0, w: 16, h: height },
             { x: width - 16, y: 0, w: 16, h: height }
         );
+
+        filteredRects.push(...bridgeSideBlocks);
 
         window.obstacles = filteredRects;
 

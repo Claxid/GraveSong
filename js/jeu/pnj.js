@@ -13,7 +13,7 @@ function createpnjController(canvas, ctx, camera, startX = 800, startY = 800) {
         frameSize: 50,
         maxFrames: 2,
         animCounter: 0,
-        animSpeed: 12,
+        animSpeed: 42,
         scale: 2,
         hitW: 40,
         hitH: 60

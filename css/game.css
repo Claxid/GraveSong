@@ -22,6 +22,11 @@
 	--hud-kill-offset-right: 20;
 	--hud-kill-offset-top: 20;
 
+	--hud-timer-text-color: #fff;
+	--hud-timer-font: bold 18px Arial;
+	--hud-timer-offset-right: 20;
+	--hud-timer-offset-top: 50;
+
 	--hitbox-player-color: #00ff00;
 	--hitbox-enemy-color: #ff0000;
 
