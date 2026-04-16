@@ -199,10 +199,7 @@ function analyzeMapImage() {
         window.obstacles = filteredRects;
 
         if (!window.obstacles.length) {
-            console.warn("⚠️ Aucun obstacle détecté (vérifier les couleurs ou le chargement de l'image)");
-        } else {
-            console.log(`✅ ${window.obstacles.length} obstacles détectés`);
-            console.log(window.obstacles);
+            console.warn("Aucun obstacle détecté: vérifier les couleurs de la map ou le chargement de l'image.");
         }
     };
 }

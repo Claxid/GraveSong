@@ -37,14 +37,10 @@ const initLorePage = () => {
 	}
 
 	if (menuButton) {
-		console.log('Lore: Menu button found');
 		menuButton.addEventListener('click', () => {
-			console.log('Menu button clicked, saving audio time and navigating to menu.html');
 			saveAudioTime();
 			window.location.href = 'menu.html';
 		});
-	} else {
-		console.warn('Lore: Menu button (#menuButton) not found');
 	}
 };
 

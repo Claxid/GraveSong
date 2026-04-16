@@ -32,6 +32,7 @@ let gameStartAt = performance.now();
 let lastProcessedLevel = playerController.player.level;
 let isChangingMap = false;
 let uiStyles = window.GameUI.readUiStyles(canvas);
+let hadAliveBossThisRun = false;
 const nightmareStatueSprite0 = new Image();
 nightmareStatueSprite0.src = "../assets/images/statue_cauchemar(0).png";
 const nightmareStatueSprite1 = new Image();
@@ -256,6 +257,16 @@ function loop() {
     }
 
     encounterSystem.updateSpawnsAndEnemies(canUpdateWorld, now);
+
+    const aliveBoss = getAliveBossEnemy();
+    if (isMap1 && aliveBoss) {
+        hadAliveBossThisRun = true;
+    }
+    if (isMap1 && hadAliveBossThisRun && !aliveBoss && !isChangingMap) {
+        isChangingMap = true;
+        window.location.href = "map2.html";
+        return;
+    }
 
     if (canUpdateWorld) {
         for (const pnj of pnjControllers) pnj.update();
