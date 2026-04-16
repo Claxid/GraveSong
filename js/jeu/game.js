@@ -347,7 +347,7 @@ function createBossController(startX, startY) {
         x: startX,
         y: startY,
         speed: 1.05,
-        hp: 4200,
+        hp: 6000,
         maxhp: 4200,
         isBoss: true,
         hitW: 90,
