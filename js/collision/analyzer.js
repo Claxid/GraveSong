@@ -52,8 +52,9 @@ window.CollisionAnalyzer = (() => {
                 ...bridgeSideBlocks
             ];
 
-            if (!window.obstacles.length) console.warn("Aucun obstacle détecté (vérifier les couleurs ou le chargement de l'image)");
-            else console.log(`${window.obstacles.length} obstacles détectés`);
+            if (!window.obstacles.length) {
+                console.warn("Aucun obstacle détecté: vérifier les couleurs de la map ou le chargement de l'image.");
+            }
         };
     }
 

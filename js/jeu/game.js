@@ -348,7 +348,7 @@ function createBossController(startX, startY) {
         y: startY,
         speed: 1.05,
         hp: 6000,
-        maxhp: 4200,
+        maxhp: 6000,
         isBoss: true,
         hitW: 90,
         hitH: 90,
@@ -777,6 +777,11 @@ function loop() {
             bossSpawned = false;
             bossDefeated = true;
             lastSpawnAt = now;
+            if (!isChangingMap) {
+                isChangingMap = true;
+                window.location.href = "map2.html";
+                return;
+            }
         }
     }
 
