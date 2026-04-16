@@ -48,3 +48,4 @@ const map1PortalZone = {
     h: 951 - 895
 };
 const DEV_TEST_COMBO_KEY = "b";
+const DEV_MAP2_LOADOUT_COMBO_KEY = "m";

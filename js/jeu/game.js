@@ -28,6 +28,12 @@ const playerController = createPlayerController(canvas, ctx, cameraController.ca
     width: mapRenderer.MAP_WIDTH,
     height: mapRenderer.MAP_HEIGHT
 });
+if (typeof playerController.loadPersistentProgress === "function") {
+    const loaded = playerController.loadPersistentProgress();
+    if (loaded) {
+        runtimeLogger.success("Progression chargee (map1)");
+    }
+}
 runtimeLogger.success("Controles principaux initialises", {
     mapWidth: mapRenderer.MAP_WIDTH,
     mapHeight: mapRenderer.MAP_HEIGHT
@@ -55,6 +61,12 @@ let teleportCinematic = {
 };
 
 let uiStyles = readUiStyles();
+
+window.addEventListener("beforeunload", () => {
+    if (typeof playerController.savePersistentProgress === "function") {
+        playerController.savePersistentProgress();
+    }
+});
 
 // Boucle du jeu
 // Loop extracted to js/jeu/map1/game-loop.js

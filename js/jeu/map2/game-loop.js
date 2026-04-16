@@ -12,7 +12,9 @@ function loop() {
 
     if (canUpdateWorld && isMap1) {
         const now = performance.now();
-        const maxEnemies = getMaxEnemyCount(now);
+        const progressionCap = getMaxEnemyCount(now);
+        const warmupCap = getMap2WarmupEnemyCap(now);
+        const maxEnemies = Math.min(progressionCap, warmupCap);
         const spawnInterval = getSpawnInterval(now);
         const spawnBatchSize = getSpawnBatchSize(now);
 
@@ -33,7 +35,7 @@ function loop() {
             if (enemyControllers[i].enemy.hp > 0) continue;
 
             const deadEnemy = enemyControllers[i].enemy;
-            const potionDropChance = deadEnemy.type === "orc3"
+            const potionDropChance = deadEnemy.type === "flower-wolf"
                 ? ORC3_POTION_DROP_CHANCE
                 : GOBELIN_POTION_DROP_CHANCE;
 
@@ -82,24 +84,34 @@ function loop() {
     }
 
     if (isVilleMap && !isChangingMap && isRectOverlap(playerHitbox, map2PortalZone)) {
+        if (typeof playerController.savePersistentProgress === "function") {
+            playerController.savePersistentProgress();
+        }
         isChangingMap = true;
         window.location.href = "map2.html";
     }
 
     if (canUpdateWorld) {
         let touchingEnemy = false;
+        let contactDamage = CONTACT_DAMAGE;
+        const playerRadius = Math.max(playerController.player.hitW || 24, playerController.player.hitH || 35) / 2;
         for (const enemyController of enemyControllers) {
-            const enemyHitbox = getEntityHitbox(enemyController.enemy);
-            if (isRectOverlap(playerHitbox, enemyHitbox)) {
-                touchingEnemy = true;
-                break;
-            }
+            const enemy = enemyController.enemy;
+            const enemyRadius = Math.max(enemy.hitW || 30, enemy.hitH || 30) / 2;
+            const dx = enemy.x - playerController.player.x;
+            const dy = enemy.y - playerController.player.y;
+            const distanceSq = dx * dx + dy * dy;
+            const contactRange = playerRadius + enemyRadius + 6;
+
+            if (distanceSq > contactRange * contactRange) continue;
+            touchingEnemy = true;
+            contactDamage = Math.max(contactDamage, enemy.contactDamage || CONTACT_DAMAGE);
         }
 
         if (touchingEnemy) {
             const now = performance.now();
             if (now - lastContactDamageAt >= DAMAGE_COOLDOWN_MS) {
-                playerController.player.hp = Math.max(0, playerController.player.hp - CONTACT_DAMAGE);
+                playerController.player.hp = Math.max(0, playerController.player.hp - contactDamage);
                 lastContactDamageAt = now;
             }
         }
@@ -108,6 +120,9 @@ function loop() {
     if (playerController.player.hp <= 0 && !deathCinematic.active && !isChangingMap) {
         startDeathCinematic(() => {
             if (!isVilleMap && !isChangingMap) {
+                if (typeof playerController.clearPersistentProgress === "function") {
+                    playerController.clearPersistentProgress();
+                }
                 isChangingMap = true;
                 window.location.href = "ville.html";
                 return;

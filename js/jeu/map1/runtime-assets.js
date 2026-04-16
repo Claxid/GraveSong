@@ -149,6 +149,19 @@ function activateDevBossTestMode() {
     lastSpawnAt = performance.now();
 }
 
+function activateDevMap2Loadout() {
+    if (typeof playerController.applyDevTestLoadout === "function") {
+        playerController.applyDevTestLoadout();
+    }
+
+    if (typeof playerController.savePersistentProgress === "function") {
+        playerController.savePersistentProgress();
+    }
+
+    isChangingMap = true;
+    window.location.href = "map2.html";
+}
+
 function getMaxEnemyCount(now) {
     return window.GameProgressionUtils.getMaxEnemyCount(
         now,

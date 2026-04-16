@@ -42,6 +42,14 @@ function setupMap1Runtime() {
         activateDevBossTestMode();
     });
 
+    window.addEventListener("keydown", (e) => {
+        const key = String(e.key || "").toLowerCase();
+        if (!(e.ctrlKey && e.shiftKey && key === DEV_MAP2_LOADOUT_COMBO_KEY)) return;
+
+        e.preventDefault();
+        activateDevMap2Loadout();
+    });
+
     canvas.addEventListener("click", (e) => {
         const choices = playerController.getCurrentPerkChoices();
         if (!choices) return;

@@ -68,6 +68,9 @@ function loop() {
             bossDefeated = true;
             lastSpawnAt = now;
             if (!isChangingMap) {
+                if (typeof playerController.savePersistentProgress === "function") {
+                    playerController.savePersistentProgress();
+                }
                 isChangingMap = true;
                 startTeleportCinematic("map2.html");
             }
@@ -107,6 +110,9 @@ function loop() {
     }
 
     if (isVilleMap && !isChangingMap && isRectOverlap(playerHitbox, map1PortalZone)) {
+        if (typeof playerController.savePersistentProgress === "function") {
+            playerController.savePersistentProgress();
+        }
         isChangingMap = true;
         window.location.href = "map1.html";
     }
@@ -114,11 +120,21 @@ function loop() {
     if (canUpdateWorld) {
         let touchingEnemy = false;
         let contactDamage = CONTACT_DAMAGE;
+        const playerRadius = Math.max(playerController.player.hitW || 24, playerController.player.hitH || 35) / 2;
         for (const ec of enemyControllers) {
             if (ec.enemy.isBoss) continue;
-            if (!isRectOverlap(playerHitbox, getEntityHitbox(ec.enemy))) continue;
+
+            const enemy = ec.enemy;
+            const enemyRadius = Math.max(enemy.hitW || 30, enemy.hitH || 30) / 2;
+            const dx = enemy.x - playerController.player.x;
+            const dy = enemy.y - playerController.player.y;
+            const distanceSq = dx * dx + dy * dy;
+            const contactRange = playerRadius + enemyRadius + 6;
+
+            if (distanceSq > contactRange * contactRange) continue;
+
             touchingEnemy = true;
-            contactDamage = Math.max(contactDamage, ec.enemy.contactDamage || CONTACT_DAMAGE);
+            contactDamage = Math.max(contactDamage, enemy.contactDamage || CONTACT_DAMAGE);
         }
         if (touchingEnemy) {
             const now = performance.now();
@@ -133,6 +149,9 @@ function loop() {
     if (playerController.player.hp <= 0) {
         startDeathCinematic(() => {
             if (!isVilleMap && !isChangingMap) {
+                if (typeof playerController.clearPersistentProgress === "function") {
+                    playerController.clearPersistentProgress();
+                }
                 isChangingMap = true;
                 window.location.href = "ville.html";
                 return;

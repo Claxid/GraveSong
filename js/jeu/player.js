@@ -2,6 +2,9 @@
 // Deplacement ZQSD avec collisions, auto-attaque et systeme de perks.
 
 function createPlayerController(canvas, ctx, camera, worldBounds = null) {
+    const PLAYER_PROGRESS_STORAGE_KEY = "gravesong.playerProgress.v1";
+    const PLAYER_PROGRESS_SKIP_NEXT_SAVE_KEY = "gravesong.playerProgress.skipNextSave";
+
     const sprite = new Image();
     sprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier/Soldier-Walk.png";
 
@@ -1518,6 +1521,163 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         syncDerivedAttackVisualStats();
     }
 
+    function savePersistentProgress() {
+        try {
+            const skipNextSave = sessionStorage.getItem(PLAYER_PROGRESS_SKIP_NEXT_SAVE_KEY) === "1";
+            if (skipNextSave) {
+                sessionStorage.removeItem(PLAYER_PROGRESS_SKIP_NEXT_SAVE_KEY);
+                sessionStorage.removeItem(PLAYER_PROGRESS_STORAGE_KEY);
+                return false;
+            }
+
+            const payload = {
+                version: 1,
+                savedAt: Date.now(),
+                player: {
+                    hp: player.hp,
+                    maxHp: player.maxHp,
+                    exp: player.exp,
+                    maxExp: player.maxExp,
+                    level: player.level
+                },
+                attackStats: {
+                    ...attackStats
+                },
+                fireballState: {
+                    cooldown: fireballState.cooldown
+                },
+                chaosAuraState: {
+                    sizeMultiplier: chaosAuraState.sizeMultiplier,
+                    damageMultiplier: chaosAuraState.damageMultiplier,
+                    cooldownMultiplier: chaosAuraState.cooldownMultiplier
+                },
+                blackHoleState: {
+                    cooldownMultiplier: blackHoleState.cooldownMultiplier,
+                    damageMultiplier: blackHoleState.damageMultiplier
+                },
+                pendingPerkChoices: pendingPerkChoices.map((choices) => choices.map((choice) => ({
+                    id: choice.id,
+                    name: choice.name,
+                    description: choice.description
+                })))
+            };
+
+            sessionStorage.setItem(PLAYER_PROGRESS_STORAGE_KEY, JSON.stringify(payload));
+            return true;
+        } catch (_err) {
+            return false;
+        }
+    }
+
+    function clearPersistentProgress() {
+        try {
+            sessionStorage.setItem(PLAYER_PROGRESS_SKIP_NEXT_SAVE_KEY, "1");
+            sessionStorage.removeItem(PLAYER_PROGRESS_STORAGE_KEY);
+            return true;
+        } catch (_err) {
+            return false;
+        }
+    }
+
+    function loadPersistentProgress() {
+        try {
+            const raw = sessionStorage.getItem(PLAYER_PROGRESS_STORAGE_KEY);
+            if (!raw) return false;
+
+            const parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== "object") return false;
+
+            const savedPlayer = parsed.player || {};
+            if (Number.isFinite(savedPlayer.maxHp)) {
+                player.maxHp = Math.max(1, Number(savedPlayer.maxHp));
+            }
+            if (Number.isFinite(savedPlayer.hp)) {
+                player.hp = Math.max(0, Math.min(player.maxHp, Number(savedPlayer.hp)));
+            }
+            if (Number.isFinite(savedPlayer.level)) {
+                player.level = Math.max(1, Math.floor(Number(savedPlayer.level)));
+            }
+            if (Number.isFinite(savedPlayer.maxExp)) {
+                player.maxExp = Math.max(1, Number(savedPlayer.maxExp));
+            }
+            if (Number.isFinite(savedPlayer.exp)) {
+                player.exp = Math.max(0, Number(savedPlayer.exp));
+            }
+            while (player.exp >= player.maxExp) {
+                player.exp -= player.maxExp;
+                player.level += 1;
+                player.maxExp += player.maxExp * 0.2;
+            }
+
+            const savedAttackStats = parsed.attackStats || {};
+            for (const key of Object.keys(attackStats)) {
+                if (!Number.isFinite(savedAttackStats[key])) continue;
+                attackStats[key] = Number(savedAttackStats[key]);
+            }
+
+            const savedFireball = parsed.fireballState || {};
+            if (Number.isFinite(savedFireball.cooldown)) {
+                fireballState.cooldown = Math.max(400, Math.round(Number(savedFireball.cooldown)));
+            }
+
+            const savedChaosAura = parsed.chaosAuraState || {};
+            if (Number.isFinite(savedChaosAura.sizeMultiplier)) {
+                chaosAuraState.sizeMultiplier = Math.max(0.1, Number(savedChaosAura.sizeMultiplier));
+            }
+            if (Number.isFinite(savedChaosAura.damageMultiplier)) {
+                chaosAuraState.damageMultiplier = Math.max(0.1, Number(savedChaosAura.damageMultiplier));
+            }
+            if (Number.isFinite(savedChaosAura.cooldownMultiplier)) {
+                chaosAuraState.cooldownMultiplier = Math.max(0.05, Number(savedChaosAura.cooldownMultiplier));
+            }
+
+            const savedBlackHole = parsed.blackHoleState || {};
+            if (Number.isFinite(savedBlackHole.cooldownMultiplier)) {
+                blackHoleState.cooldownMultiplier = Math.max(0.05, Number(savedBlackHole.cooldownMultiplier));
+            }
+            if (Number.isFinite(savedBlackHole.damageMultiplier)) {
+                blackHoleState.damageMultiplier = Math.max(0.1, Number(savedBlackHole.damageMultiplier));
+            }
+
+            pendingPerkChoices.length = 0;
+            if (Array.isArray(parsed.pendingPerkChoices)) {
+                for (const choices of parsed.pendingPerkChoices) {
+                    if (!Array.isArray(choices)) continue;
+                    const sanitized = choices
+                        .filter((choice) => choice && typeof choice === "object")
+                        .map((choice) => ({
+                            id: String(choice.id || ""),
+                            name: String(choice.name || ""),
+                            description: String(choice.description || "")
+                        }))
+                        .filter((choice) => choice.id.length > 0);
+
+                    if (sanitized.length > 0) {
+                        pendingPerkChoices.push(sanitized);
+                    }
+                }
+            }
+
+            axeState.count = getAxeCount();
+            axeState.active = axeState.count > 0;
+            chaosAuraState.active = isChaosAuraUnlocked();
+            if (chaosAuraState.active && chaosAuraState.nextPulseAt <= 0) {
+                const now = performance.now();
+                const initialDelayMs = Math.round(getChaosAuraCooldownMs() * 1.5);
+                chaosAuraState.nextPulseAt = now + initialDelayMs;
+            }
+            fireballState.count = Math.max(0, Number(attackStats.Fireball) || 0);
+            fireballState.active = fireballState.count > 0;
+            blackHoleState.count = Math.max(0, Number(attackStats.BlackHole) || 0);
+            blackHoleState.active = blackHoleState.count > 0;
+
+            syncDerivedAttackVisualStats();
+            return true;
+        } catch (_err) {
+            return false;
+        }
+    }
+
     return {
         player,
         update,
@@ -1529,6 +1689,9 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         applyPerkByIndex,
         triggerHurt,
         applyDevTestLoadout,
+        savePersistentProgress,
+        loadPersistentProgress,
+        clearPersistentProgress,
         getAttackStats: () => ({ ...attackStats })
     };
 }

@@ -25,6 +25,12 @@ runtimeLogger.success("Canvas resize applique", { width: canvas.width, height: c
 const mapRenderer = createMapRenderer(canvas, ctx);
 const cameraController = createCameraController(canvas, mapRenderer.MAP_WIDTH, mapRenderer.MAP_HEIGHT);
 const playerController = createPlayerController(canvas, ctx, cameraController.camera);
+if (typeof playerController.loadPersistentProgress === "function") {
+    const loaded = playerController.loadPersistentProgress();
+    if (loaded) {
+        runtimeLogger.success("Progression chargee (map2)");
+    }
+}
 runtimeLogger.success("Controles principaux initialises", {
     mapWidth: mapRenderer.MAP_WIDTH,
     mapHeight: mapRenderer.MAP_HEIGHT
@@ -45,12 +51,17 @@ const SPAWN_INTERVAL_DECAY_EVERY_MS = 15000;
 const BASE_SPAWN_BATCH_SIZE = 1;
 const MAX_SPAWN_BATCH_SIZE = 4;
 const SPAWN_BATCH_GROWTH_EVERY_MS = 30000;
-const INITIAL_ENEMY_COUNT = 4;
+const INITIAL_ENEMY_COUNT = 0;
+const MAP2_ENEMY_WARMUP_STEP_MS = 3500;
 const BASE_MAX_ENEMIES = 7;
 const ENEMY_GROWTH_EVERY_MS = 20000;
 const ENEMIES_PER_GROWTH_STEP = 3;
 const ABSOLUTE_MAX_ENEMIES = 300;
-const ENEMY_KILL_EXP = 30;
+const ENEMY_KILL_EXP = 38;
+const ENEMY_SPAWN_WEIGHTS_MAP2 = [
+    { type: "flower-wolf", weight: 5 },
+    { type: "slime2", weight: 95 }
+];
 
 const CONTACT_DAMAGE = 5;
 const DAMAGE_COOLDOWN_MS = 500;
@@ -95,9 +106,36 @@ let teleportCinematic = {
 
 let uiStyles = readUiStyles();
 
+window.addEventListener("beforeunload", () => {
+    if (typeof playerController.savePersistentProgress === "function") {
+        playerController.savePersistentProgress();
+    }
+});
+
+function pickWeightedMap2EnemyType() {
+    const totalWeight = ENEMY_SPAWN_WEIGHTS_MAP2.reduce((sum, entry) => sum + entry.weight, 0);
+    if (totalWeight <= 0) return "slime2";
+
+    let roll = Math.random() * totalWeight;
+    for (const entry of ENEMY_SPAWN_WEIGHTS_MAP2) {
+        roll -= entry.weight;
+        if (roll <= 0) {
+            return entry.type;
+        }
+    }
+
+    return ENEMY_SPAWN_WEIGHTS_MAP2[ENEMY_SPAWN_WEIGHTS_MAP2.length - 1].type;
+}
+
+function getMap2WarmupEnemyCap(now) {
+    const elapsed = Math.max(0, now - gameStartAt);
+    return Math.min(BASE_MAX_ENEMIES, Math.floor(elapsed / MAP2_ENEMY_WARMUP_STEP_MS));
+}
+
 function spawnEnemyNearPlayer() {
     const spawn = getRandomSpawnAroundPlayer(playerController.player);
-    enemyControllers.push(createEnemyController(canvas, ctx, cameraController.camera, spawn.x, spawn.y));
+    const enemyType = pickWeightedMap2EnemyType();
+    enemyControllers.push(createEnemyController(canvas, ctx, cameraController.camera, spawn.x, spawn.y, enemyType));
 }
 
 for (let i = 0; i < INITIAL_ENEMY_COUNT; i++) {
