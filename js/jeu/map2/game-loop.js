@@ -31,6 +31,22 @@ function loop() {
 
         for (let i = enemyControllers.length - 1; i >= 0; i--) {
             if (enemyControllers[i].enemy.hp > 0) continue;
+
+            const deadEnemy = enemyControllers[i].enemy;
+            const potionDropChance = deadEnemy.type === "orc3"
+                ? ORC3_POTION_DROP_CHANCE
+                : GOBELIN_POTION_DROP_CHANCE;
+
+            if (Math.random() < potionDropChance) {
+                potions.push({
+                    x: deadEnemy.x,
+                    y: deadEnemy.y,
+                    w: 32,
+                    h: 32,
+                    healAmount: POTION_HEAL_AMOUNT
+                });
+            }
+
             enemyControllers.splice(i, 1);
             killCount += 1;
             givePlayerExp(ENEMY_KILL_EXP);
@@ -44,6 +60,26 @@ function loop() {
     }
 
     const playerHitbox = getEntityHitbox(playerController.player);
+
+    if (canUpdateWorld) {
+        for (let i = potions.length - 1; i >= 0; i--) {
+            const potion = potions[i];
+            const potionHitbox = {
+                x: potion.x - potion.w / 2,
+                y: potion.y - potion.h / 2,
+                w: potion.w,
+                h: potion.h
+            };
+
+            if (!isRectOverlap(playerHitbox, potionHitbox)) continue;
+
+            playerController.player.hp = Math.min(
+                playerController.player.maxHp,
+                playerController.player.hp + potion.healAmount
+            );
+            potions.splice(i, 1);
+        }
+    }
 
     if (isVilleMap && !isChangingMap && isRectOverlap(playerHitbox, map2PortalZone)) {
         isChangingMap = true;
@@ -69,7 +105,7 @@ function loop() {
         }
     }
 
-    if (playerController.player.hp <= 0) {
+    if (playerController.player.hp <= 0 && !deathCinematic.active && !isChangingMap) {
         startDeathCinematic(() => {
             if (!isVilleMap && !isChangingMap) {
                 isChangingMap = true;
@@ -92,6 +128,19 @@ function loop() {
 
     for (const enemyController of enemyControllers) {
         enemyController.draw();
+    }
+
+    for (const potion of potions) {
+        const size = 55 * cameraController.camera.zoom;
+        const drawX = (potion.x - cameraController.camera.x) * cameraController.camera.zoom - size / 2;
+        const drawY = (potion.y - cameraController.camera.y) * cameraController.camera.zoom - size / 2;
+
+        if (potionSprite.complete) {
+            ctx.drawImage(potionSprite, drawX, drawY, size, size);
+        } else {
+            ctx.fillStyle = "red";
+            ctx.fillRect(drawX, drawY, size, size);
+        }
     }
 
     if (window.drawCollidersOverlay) {

@@ -2,6 +2,16 @@ function readUiStyles() {
     return window.GameUiUtils.readUiStyles(canvas);
 }
 
+const potionSprite = new Image();
+window.GameRuntimeLogger?.trackImage(potionSprite, "Potion", "../assets/sprites/potion/healing_potion.png");
+potionSprite.src = "../assets/sprites/potion/healing_potion.png";
+const nightmareStatueSprite0 = new Image();
+window.GameRuntimeLogger?.trackImage(nightmareStatueSprite0, "Statue Cauchemar 0", "../assets/images/statue_cauchemar(0).png");
+nightmareStatueSprite0.src = "../assets/images/statue_cauchemar(0).png";
+const nightmareStatueSprite1 = new Image();
+window.GameRuntimeLogger?.trackImage(nightmareStatueSprite1, "Statue Cauchemar 1", "../assets/images/statue_cauchemar(1).png");
+nightmareStatueSprite1.src = "../assets/images/statue_cauchemar(1).png";
+
 function startDeathCinematic(onComplete) {
     window.GameCinematics.startDeath(deathCinematic, onComplete);
 }
@@ -26,7 +36,9 @@ function drawDeathCinematicOverlay(now) {
         flashIntensity: DEATH_FLASH_INTENSITY,
         statueScale: DEATH_STATUE_SCALE,
         statue1OffsetX: DEATH_STATUE1_OFFSET_X,
-        statue1OffsetY: DEATH_STATUE1_OFFSET_Y
+        statue1OffsetY: DEATH_STATUE1_OFFSET_Y,
+        sprite0: nightmareStatueSprite0,
+        sprite1: nightmareStatueSprite1
     });
 }
 

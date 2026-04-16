@@ -1,9 +1,17 @@
 // Boucle principale du jeu
 // Fichier principal du jeu avec boucle, canvas, etc.
 
+const runtimeLogger = window.GameRuntimeLogger || {
+    info: () => {},
+    success: () => {},
+    error: () => {},
+    trackStep: (_, fn) => fn()
+};
+
 // CANVAS PLEIN ECRAN + RESPONSIVE
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+runtimeLogger.success("Canvas initialise", { width: canvas.width, height: canvas.height });
 
 // Ajuste la taille du canvas à la taille de l'écran
 function resizeCanvas() {
@@ -11,12 +19,22 @@ function resizeCanvas() {
     canvas.height = window.innerHeight;
 }
 resizeCanvas();
+runtimeLogger.success("Canvas resize applique", { width: canvas.width, height: canvas.height });
 
 // Je crée les contrôleurs pour la map, la caméra, le joueur et l'ennemi.
 const mapRenderer = createMapRenderer(canvas, ctx);
 const cameraController = createCameraController(canvas, mapRenderer.MAP_WIDTH, mapRenderer.MAP_HEIGHT);
 const playerController = createPlayerController(canvas, ctx, cameraController.camera);
+runtimeLogger.success("Controles principaux initialises", {
+    mapWidth: mapRenderer.MAP_WIDTH,
+    mapHeight: mapRenderer.MAP_HEIGHT
+});
 const enemyControllers = [];
+const potions = [];
+
+const GOBELIN_POTION_DROP_CHANCE = 0.02;
+const ORC3_POTION_DROP_CHANCE = 0.04;
+const POTION_HEAL_AMOUNT = 15;
 
 const SPAWN_RING_MIN = 500;
 const SPAWN_RING_MAX = 700;
@@ -86,6 +104,7 @@ for (let i = 0; i < INITIAL_ENEMY_COUNT; i++) {
     if (!isMap1) break;
     spawnEnemyNearPlayer();
 }
+runtimeLogger.success("Spawn initial termine", { enemyCount: enemyControllers.length });
 
 window.addEventListener("keydown", (e) => {
     if (!playerController.hasPendingPerks()) return;
@@ -150,4 +169,9 @@ function getPerkOverlayLayout(choiceCount) {
 function drawPerkOverlay(choices) {
     window.GamePerkOverlay.draw(ctx, canvas, uiStyles, choices);
 }
-loop();
+
+try {
+    runtimeLogger.trackStep("Boucle map2", () => loop());
+} catch (err) {
+    runtimeLogger.error("Echec demarrage map2", err);
+}

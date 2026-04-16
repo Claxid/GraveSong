@@ -1,5 +1,5 @@
-window.createEnemyController = function createEnemyController(canvas, ctx, camera, startX = 800, startY = 800, enemyType = "orc") {
-    const enemyConfig = (window.ENEMY_TYPE_CONFIGS && window.ENEMY_TYPE_CONFIGS[enemyType]) || window.ENEMY_TYPE_CONFIGS.orc;
+window.createEnemyController = function createEnemyController(canvas, ctx, camera, startX = 800, startY = 800, enemyType = "gobelin") {
+    const enemyConfig = (window.ENEMY_TYPE_CONFIGS && window.ENEMY_TYPE_CONFIGS[enemyType]) || window.ENEMY_TYPE_CONFIGS.gobelin;
     const sprite = new Image();
     sprite.src = enemyConfig.spriteSrc;
 

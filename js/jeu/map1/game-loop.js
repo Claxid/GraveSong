@@ -46,7 +46,7 @@ function loop() {
                 const deadY = deadEnemy.y;
                 const potionDropChance = deadEnemy.type === "orc3"
                     ? ORC3_POTION_DROP_CHANCE
-                    : ORC_POTION_DROP_CHANCE;
+                    : GOBELIN_POTION_DROP_CHANCE;
 
                 if (Math.random() < potionDropChance) {
                     potions.push({

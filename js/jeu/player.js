@@ -1066,8 +1066,8 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
                     const lastHitTime = axeState.lastHitByEnemy.get(cooldownKey) ?? 0;
                     if (now - lastHitTime < axeState.hitCooldown) continue;
 
-                    // Axe one-shots regular orcs but not tanky Orc3.
-                    const appliedAxeDamage = enemy.type === "orc" ? enemy.hp : axeDamage;
+                    // Axe one-shots regular gobelins but not tanky Orc3.
+                    const appliedAxeDamage = enemy.type === "gobelin" ? enemy.hp : axeDamage;
                     enemy.hp = Math.max(0, enemy.hp - appliedAxeDamage);
                     axeState.lastHitByEnemy.set(cooldownKey, now);
                 }
@@ -1185,7 +1185,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
 
                 if ((dx * dx + dy * dy) > hitDistance * hitDistance) continue;
 
-                const appliedFireballDamage = enemy.type === "orc" ? enemy.hp : fireballDamage;
+                const appliedFireballDamage = enemy.type === "gobelin" ? enemy.hp : fireballDamage;
                 enemy.hp = Math.max(0, enemy.hp - appliedFireballDamage);
                 spawnFireballExplosion(fireball.x, fireball.y);
                 hit = true;

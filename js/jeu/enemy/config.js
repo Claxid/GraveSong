@@ -1,6 +1,6 @@
 window.ENEMY_TYPE_CONFIGS = {
-    orc: {
-        spriteSrc: "../assets/sprites/Characters(100x100)/Orc/Orc with shadows/Orc-Walk.png",
+    gobelin: {
+        spriteSrc: "../assets/sprites/Characters(100x100)/Orc/Orc/Orc-Walk.png",
         frameSize: 100,
         maxFrames: 6,
         speed: 1.52,

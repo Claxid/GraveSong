@@ -1,4 +1,4 @@
-const ORC_POTION_DROP_CHANCE = 0.02;
+const GOBELIN_POTION_DROP_CHANCE = 0.02;
 const ORC3_POTION_DROP_CHANCE = 0.04;
 const POTION_HEAL_AMOUNT = 15;
 const SPAWN_RING_MIN = 500;
@@ -17,7 +17,7 @@ const ENEMIES_PER_GROWTH_STEP = 3;
 const ABSOLUTE_MAX_ENEMIES = 300;
 const ENEMY_KILL_EXP = 30;
 const ENEMY_SPAWN_WEIGHTS = [
-    { type: "orc", weight: 95 },
+    { type: "gobelin", weight: 95 },
     { type: "orc3", weight: 5 }
 ];
 const BOSS_SPAWN_DELAY_MS = 5 * 60 * 1000;

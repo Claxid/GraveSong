@@ -7,7 +7,6 @@ Clément(Fullstack)
 
 idées projets :
 
-interface genre pokémon 
 
 Dark fantasy (genre the witcher pas le ore)
 
@@ -18,24 +17,7 @@ idée bonus :
 
 achievment 
 
-stats a la elden ring 
 
-
-
-
-
-type de perso:
-
-race(optionnel) , classe , niveau  : 
-{
-}
-
-
-type d'ennemie :
-
-race , niveau :
-{
-}
 
 GraveSong Lore :
 
@@ -62,14 +44,7 @@ simple couplet dans l’éternelle et lugubre Gravesong.
 
 
 
-fonctionalité : 
 
-combat TpT , style pokemon 
-
-Création de perso :
-    nom ,prenom , lore , objectifs (aléatoire)
-    systeme de talent inhé random selon la classse 
-    stats par classe (definies au prealable, stats augmentable avec l'exp)
 
 Shop + gold
 Checkpoint (totem cacher)
