@@ -15,7 +15,7 @@ window.ENEMY_TYPE_CONFIGS = {
         spriteSrc: "../assets/sprites/Orc3/orc3_walk/orc3_walk_full.png",
         frameSize: 64,
         maxFrames: 6,
-        speed: 0.92,
+        speed: 0.97,
         animSpeed: 16,
         scale: 2.2,
         hp: 120,

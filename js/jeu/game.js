@@ -20,11 +20,27 @@ const isMap1 = window.location.pathname.replace(/\\/g, "/").endsWith("/template/
 const isVilleMap = window.location.pathname.replace(/\\/g, "/").endsWith("/template/ville.html");
 const map1PortalZone = { x: 2270, y: 895, w: 39, h: 56 };
 const SHOW_HITBOXES = false;
+const DEV_TEST_COMBO_KEY = "b";
+const DEATH_CINEMATIC_DURATION_MS = 3200;
+const DEATH_FLASH_IN_MS = 420;
+const DEATH_FLASH_HOLD_MS = 280;
+const DEATH_FLASH_OUT_MS = 900;
+const DEATH_FLASH_INTENSITY = 0.62;
+const DEATH_STATUE_SCALE = 0.78;
 
 let gameStartAt = performance.now();
 let lastProcessedLevel = playerController.player.level;
 let isChangingMap = false;
 let uiStyles = window.GameUI.readUiStyles(canvas);
+const nightmareStatueSprite0 = new Image();
+nightmareStatueSprite0.src = "../assets/images/statue_cauchemar(0).png";
+const nightmareStatueSprite1 = new Image();
+nightmareStatueSprite1.src = "../assets/images/statue_cauchemar(1).png";
+let deathCinematic = {
+    active: false,
+    startAt: 0,
+    onComplete: null
+};
 
 const potionSystem = window.PotionSystem.createPotionSystem({
     ctx,
@@ -65,6 +81,114 @@ function spawnPnj(x, y) {
     pnjControllers.push(createpnjController(canvas, ctx, cameraController.camera, x, y));
 }
 
+function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+}
+
+function startDeathCinematic(onComplete) {
+    if (deathCinematic.active) return;
+
+    deathCinematic.active = true;
+    deathCinematic.startAt = performance.now();
+    deathCinematic.onComplete = onComplete;
+}
+
+function updateDeathCinematic(now) {
+    if (!deathCinematic.active) return;
+
+    const elapsed = now - deathCinematic.startAt;
+    if (elapsed < DEATH_CINEMATIC_DURATION_MS) return;
+
+    const callback = deathCinematic.onComplete;
+    deathCinematic.active = false;
+    deathCinematic.onComplete = null;
+    if (typeof callback === "function") {
+        callback();
+    }
+}
+
+function drawDeathCinematicOverlay(now) {
+    if (!deathCinematic.active) return;
+
+    const elapsed = now - deathCinematic.startAt;
+    const flashStartAt = 1200;
+    const flashPhase1 = flashStartAt + DEATH_FLASH_IN_MS;
+    const flashPhase2 = flashPhase1 + DEATH_FLASH_HOLD_MS;
+    const flashPhase3 = flashPhase2 + DEATH_FLASH_OUT_MS;
+
+    let whiteAlpha = 0;
+    if (elapsed >= flashStartAt && elapsed <= flashPhase1) {
+        whiteAlpha = clamp((elapsed - flashStartAt) / Math.max(1, DEATH_FLASH_IN_MS), 0, 1);
+    } else if (elapsed <= flashPhase2) {
+        whiteAlpha = 1;
+    } else if (elapsed <= flashPhase3) {
+        const fadeT = (elapsed - flashPhase2) / Math.max(1, DEATH_FLASH_OUT_MS);
+        whiteAlpha = 1 - clamp(fadeT, 0, 1);
+    }
+
+    const statue0BaseAlpha = clamp(elapsed / 520, 0, 1);
+    const statue1FadeIn = clamp((elapsed - flashPhase2) / 760, 0, 1);
+    const statue0Alpha = statue0BaseAlpha * (1 - statue1FadeIn);
+    const statue1Alpha = statue1FadeIn;
+    const darkness = clamp((elapsed - 500) / 1200, 0, 1) * 0.45;
+
+    ctx.save();
+    ctx.fillStyle = `rgba(0, 0, 0, ${darkness.toFixed(3)})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    function drawFittedImage(image, alpha) {
+        if (!image || !image.complete || image.naturalWidth <= 0 || image.naturalHeight <= 0 || alpha <= 0.001) {
+            return;
+        }
+
+        const scale = Math.min(canvas.width / image.naturalWidth, canvas.height / image.naturalHeight) * DEATH_STATUE_SCALE;
+        const drawW = image.naturalWidth * scale;
+        const drawH = image.naturalHeight * scale;
+        const drawX = (canvas.width - drawW) / 2;
+        const drawY = (canvas.height - drawH) / 2;
+        ctx.globalAlpha = alpha;
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(image, drawX, drawY, drawW, drawH);
+    }
+
+    drawFittedImage(nightmareStatueSprite0, statue0Alpha);
+    drawFittedImage(nightmareStatueSprite1, statue1Alpha);
+
+    if (whiteAlpha > 0.001) {
+        ctx.globalAlpha = whiteAlpha * DEATH_FLASH_INTENSITY;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    ctx.restore();
+}
+
+function getAliveBossEnemy() {
+    for (const enemyController of enemyControllers) {
+        const enemy = enemyController.enemy;
+        if (!enemy || !enemy.isBoss || enemy.hp <= 0) continue;
+        return enemy;
+    }
+    return null;
+}
+
+function drawBossHealthBar(bossEnemy) {
+    if (!bossEnemy) return;
+
+    const hpRatio = clamp(bossEnemy.hp / Math.max(1, bossEnemy.maxhp || bossEnemy.hp), 0, 1);
+    const barWidth = Math.min(canvas.width * 0.32, 420);
+    const barHeight = 24;
+    const x = (canvas.width - barWidth) / 2;
+    const y = 14;
+
+    ctx.fillStyle = "rgba(20, 12, 12, 0.9)";
+    ctx.fillRect(x, y, barWidth, barHeight);
+    ctx.fillStyle = "rgba(196, 56, 56, 0.95)";
+    ctx.fillRect(x, y, barWidth * hpRatio, barHeight);
+    ctx.strokeStyle = "rgba(240, 205, 120, 0.9)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, barWidth, barHeight);
+}
+
 encounterSystem.spawnInitialEnemies();
 if (isVilleMap) {
     spawnPnj(1700, 2000);
@@ -81,6 +205,16 @@ window.addEventListener("keydown", (e) => {
     if (e.key !== "1" && e.key !== "2" && e.key !== "3") return;
     const applied = playerController.applyPerkByIndex(Number(e.key) - 1);
     if (applied) e.preventDefault();
+});
+
+window.addEventListener("keydown", (e) => {
+    const key = String(e.key || "").toLowerCase();
+    if (!(e.ctrlKey && e.shiftKey && key === DEV_TEST_COMBO_KEY)) return;
+
+    e.preventDefault();
+    if (typeof playerController.applyDevTestLoadout === "function") {
+        playerController.applyDevTestLoadout();
+    }
 });
 
 canvas.addEventListener("click", (e) => {
@@ -111,14 +245,17 @@ window.addEventListener("resize", () => {
 });
 
 function loop() {
-    const canUpdateWorld = !playerController.hasPendingPerks();
+    const now = performance.now();
+    updateDeathCinematic(now);
+
+    const canUpdateWorld = !playerController.hasPendingPerks() && !deathCinematic.active;
 
     if (canUpdateWorld) {
         const enemies = isMap1 ? enemyControllers.map((c) => c.enemy) : [];
         playerController.update(enemies);
     }
 
-    encounterSystem.updateSpawnsAndEnemies(canUpdateWorld, performance.now());
+    encounterSystem.updateSpawnsAndEnemies(canUpdateWorld, now);
 
     if (canUpdateWorld) {
         for (const pnj of pnjControllers) pnj.update();
@@ -144,15 +281,18 @@ function loop() {
     encounterSystem.applyContactDamage(canUpdateWorld, playerHitbox);
 
     if (playerController.player.hp <= 0) {
-        if (!isVilleMap && !isChangingMap) {
-            isChangingMap = true;
-            window.location.href = "ville.html";
-            return;
-        }
-        playerController.player.x = playerController.player.spawnX;
-        playerController.player.y = playerController.player.spawnY;
-        playerController.player.hp = playerController.player.maxHp;
-        encounterSystem.resetContactCooldown();
+        startDeathCinematic(() => {
+            if (!isVilleMap && !isChangingMap) {
+                isChangingMap = true;
+                window.location.href = "ville.html";
+                return;
+            }
+
+            playerController.player.x = playerController.player.spawnX;
+            playerController.player.y = playerController.player.spawnY;
+            playerController.player.hp = playerController.player.maxHp;
+            encounterSystem.resetContactCooldown();
+        });
     }
 
     cameraController.centerOn(playerController.player.x, playerController.player.y);
@@ -175,11 +315,16 @@ function loop() {
 
     const elapsed = window.GameUtils.formatElapsedTime(performance.now() - gameStartAt);
     window.GameUI.drawHud(ctx, canvas, uiStyles, playerController, encounterSystem.getKillCount(), elapsed, isMap1);
+    if (isMap1) {
+        drawBossHealthBar(getAliveBossEnemy());
+    }
 
     const perkChoices = playerController.getCurrentPerkChoices();
     if (perkChoices) {
         window.GameUI.drawPerkOverlay(ctx, canvas, uiStyles, perkChoices);
     }
+
+    drawDeathCinematicOverlay(now);
 
     requestAnimationFrame(loop);
 }

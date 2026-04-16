@@ -36,6 +36,14 @@ const ENEMY_KILL_EXP = 30;
 
 const CONTACT_DAMAGE = 5;
 const DAMAGE_COOLDOWN_MS = 500;
+const DEATH_CINEMATIC_DURATION_MS = 3200;
+const DEATH_FLASH_IN_MS = 420;
+const DEATH_FLASH_HOLD_MS = 280;
+const DEATH_FLASH_OUT_MS = 900;
+const DEATH_FLASH_INTENSITY = 0.62;
+const DEATH_STATUE_SCALE = 0.78;
+const DEATH_STATUE1_OFFSET_X = 0;
+const DEATH_STATUE1_OFFSET_Y = -0.04;
 const SHOW_HITBOXES = false;
 const isMap1 = window.location.pathname.replace(/\\/g, "/").endsWith("/template/map2.html");
 const isVilleMap = window.location.pathname.replace(/\\/g, "/").endsWith("/template/ville.html");
@@ -45,12 +53,21 @@ const map2PortalZone = {
     w: 39,
     h: 56,
 };
+const nightmareStatueSprite0 = new Image();
+nightmareStatueSprite0.src = "../assets/images/statue_cauchemar(0).png";
+const nightmareStatueSprite1 = new Image();
+nightmareStatueSprite1.src = "../assets/images/statue_cauchemar(1).png";
 let isChangingMap = false;
 let lastContactDamageAt = 0;
 let lastProcessedLevel = playerController.player.level;
 let gameStartAt = performance.now();
 let lastSpawnAt = gameStartAt;
 let killCount = 0;
+let deathCinematic = {
+    active: false,
+    startAt: 0,
+    onComplete: null
+};
 
 function getCssVar(name, fallback) {
     const value = getComputedStyle(canvas).getPropertyValue(name).trim();
@@ -121,6 +138,109 @@ let uiStyles = readUiStyles();
 
 function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
+}
+
+function startDeathCinematic(onComplete) {
+    if (deathCinematic.active) return;
+
+    deathCinematic.active = true;
+    deathCinematic.startAt = performance.now();
+    deathCinematic.onComplete = onComplete;
+}
+
+function updateDeathCinematic(now) {
+    if (!deathCinematic.active) return;
+
+    const elapsed = now - deathCinematic.startAt;
+    if (elapsed < DEATH_CINEMATIC_DURATION_MS) return;
+
+    const callback = deathCinematic.onComplete;
+    deathCinematic.active = false;
+    deathCinematic.onComplete = null;
+    if (typeof callback === "function") {
+        callback();
+    }
+}
+
+function drawDeathCinematicOverlay(now) {
+    if (!deathCinematic.active) return;
+
+    const elapsed = now - deathCinematic.startAt;
+    const flashStartAt = 1200;
+    const flashPhase1 = flashStartAt + DEATH_FLASH_IN_MS;
+    const flashPhase2 = flashPhase1 + DEATH_FLASH_HOLD_MS;
+    const flashPhase3 = flashPhase2 + DEATH_FLASH_OUT_MS;
+
+    let whiteAlpha = 0;
+    if (elapsed >= flashStartAt && elapsed <= flashPhase1) {
+        whiteAlpha = clamp((elapsed - flashStartAt) / Math.max(1, DEATH_FLASH_IN_MS), 0, 1);
+    } else if (elapsed <= flashPhase2) {
+        whiteAlpha = 1;
+    } else if (elapsed <= flashPhase3) {
+        const fadeT = (elapsed - flashPhase2) / Math.max(1, DEATH_FLASH_OUT_MS);
+        whiteAlpha = 1 - clamp(fadeT, 0, 1);
+    }
+
+    const statue0BaseAlpha = clamp(elapsed / 520, 0, 1);
+    const statue1FadeIn = clamp((elapsed - flashPhase2) / 760, 0, 1);
+    const statue0Alpha = statue0BaseAlpha * (1 - statue1FadeIn);
+    const statue1Alpha = statue1FadeIn;
+
+    const darkness = clamp((elapsed - 500) / 1200, 0, 1) * 0.45;
+
+    ctx.save();
+    ctx.fillStyle = `rgba(0, 0, 0, ${darkness.toFixed(3)})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    function drawFittedImage(image, alpha, offsetXRatio = 0, offsetYRatio = 0) {
+        if (!image || !image.complete || image.naturalWidth <= 0 || image.naturalHeight <= 0 || alpha <= 0.001) {
+            return false;
+        }
+
+        const scale = Math.min(canvas.width / image.naturalWidth, canvas.height / image.naturalHeight) * DEATH_STATUE_SCALE;
+        const drawW = image.naturalWidth * scale;
+        const drawH = image.naturalHeight * scale;
+        const drawX = (canvas.width - drawW) / 2 + offsetXRatio * canvas.width;
+        const drawY = (canvas.height - drawH) / 2 + offsetYRatio * canvas.height;
+        ctx.globalAlpha = alpha;
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(image, drawX, drawY, drawW, drawH);
+        return true;
+    }
+
+    if (statue0Alpha > 0.001 || statue1Alpha > 0.001) {
+        const sprite0Ready = nightmareStatueSprite0.complete && nightmareStatueSprite0.naturalWidth > 0;
+        const sprite1Ready = nightmareStatueSprite1.complete && nightmareStatueSprite1.naturalWidth > 0;
+
+        if (sprite0Ready) {
+            drawFittedImage(nightmareStatueSprite0, statue0Alpha, 0, 0);
+        }
+
+        if (sprite1Ready) {
+            drawFittedImage(nightmareStatueSprite1, statue1Alpha, DEATH_STATUE1_OFFSET_X, DEATH_STATUE1_OFFSET_Y);
+        }
+
+        if (!sprite0Ready && !sprite1Ready) {
+            const fallbackAlpha = Math.max(statue0Alpha, statue1Alpha);
+            const size = Math.min(canvas.width, canvas.height) * 0.6;
+            ctx.globalAlpha = fallbackAlpha;
+            ctx.fillStyle = "rgba(245, 245, 245, 0.9)";
+            ctx.beginPath();
+            ctx.moveTo(canvas.width * 0.5 - size * 0.16, canvas.height * 0.5 + size * 0.24);
+            ctx.lineTo(canvas.width * 0.5 + size * 0.16, canvas.height * 0.5 + size * 0.24);
+            ctx.lineTo(canvas.width * 0.5 + size * 0.13, canvas.height * 0.5 - size * 0.12);
+            ctx.arc(canvas.width * 0.5, canvas.height * 0.5 - size * 0.12, size * 0.13, 0, Math.PI, true);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    if (whiteAlpha > 0.001) {
+        ctx.globalAlpha = whiteAlpha * DEATH_FLASH_INTENSITY;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    ctx.restore();
 }
 
 function getRandomSpawnAroundPlayer(player) {
@@ -237,7 +357,10 @@ window.addEventListener("resize", () => {
 
 // La boucle principale du jeu : update et draw à chaque frame.
 function loop() {
-    const canUpdateWorld = !playerController.hasPendingPerks();
+    const now = performance.now();
+    updateDeathCinematic(now);
+
+    const canUpdateWorld = !playerController.hasPendingPerks() && !deathCinematic.active;
 
     if (canUpdateWorld) {
         const enemies = isMap1 ? enemyControllers.map((controller) => controller.enemy) : [];
@@ -305,16 +428,18 @@ function loop() {
     }
 
     if (playerController.player.hp <= 0) {
-        if (!isVilleMap && !isChangingMap) {
-            isChangingMap = true;
-            window.location.href = "ville.html";
-            return;
-        }
+        startDeathCinematic(() => {
+            if (!isVilleMap && !isChangingMap) {
+                isChangingMap = true;
+                window.location.href = "ville.html";
+                return;
+            }
 
-        playerController.player.x = playerController.player.spawnX;
-        playerController.player.y = playerController.player.spawnY;
-        playerController.player.hp = playerController.player.maxHp;
-        lastContactDamageAt = performance.now();
+            playerController.player.x = playerController.player.spawnX;
+            playerController.player.y = playerController.player.spawnY;
+            playerController.player.hp = playerController.player.maxHp;
+            lastContactDamageAt = performance.now();
+        });
     }
 
     // Mettre à jour la caméra (centrer sur le joueur)
@@ -362,9 +487,11 @@ function loop() {
         ctx.restore();
     }
 
-    // HUD - Barre de vie (bas gauche)
+    // HUD - PV a gauche, aligne sur le meme niveau que l'XP
+    const hudBottomY = canvas.height - uiStyles.expOffsetTop;
+    const expBarHeight = uiStyles.expBarHeight;
     const barX = uiStyles.hpOffsetLeft;
-    const barY = canvas.height - uiStyles.hpOffsetBottom;
+    const barY = hudBottomY - expBarHeight;
     const barWidth = uiStyles.hpBarWidth;
     const barHeight = uiStyles.hpBarHeight;
     const hpRatio = playerController.player.hp / playerController.player.maxHp;
@@ -387,11 +514,10 @@ function loop() {
     ctx.textBaseline = "middle";
     ctx.fillText(`${playerController.player.hp}/${playerController.player.maxHp}`, barX + barWidth / 2, barY + barHeight / 2);
 
-    // HUD - Barre d'expérience (haut centre)
+    // HUD - Barre d'experience (bas centre)
     const expBarWidth = uiStyles.expBarWidth;
-    const expBarHeight = uiStyles.expBarHeight;
     const expBarX = (canvas.width / 2) - (expBarWidth / 2);
-    const expBarY = uiStyles.expOffsetTop;
+    const expBarY = hudBottomY - expBarHeight;
     const expRatio = playerController.player.exp / playerController.player.maxExp;
 
     ctx.fillStyle = uiStyles.expBorderColor;
@@ -423,6 +549,8 @@ function loop() {
     if (perkChoices) {
         drawPerkOverlay(perkChoices);
     }
+
+    drawDeathCinematicOverlay(now);
 
     requestAnimationFrame(loop);
 }
