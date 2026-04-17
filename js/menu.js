@@ -2,6 +2,7 @@ const AUDIO_TIME_KEY = 'gravesong_audio_time';
 
 const audio = document.getElementById('menuAudio');
 const playButton = document.getElementById('playButton');
+const loreButton = document.getElementById('loreButton');
 
 let saveAudioTime = () => {};
 
