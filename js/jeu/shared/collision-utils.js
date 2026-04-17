@@ -1,8 +1,10 @@
 window.GameCollisionUtils = (() => {
     function getEntityHitbox(entity) {
+        const hitOffsetX = Number(entity.hitOffsetX) || 0;
+        const hitOffsetY = Number(entity.hitOffsetY) || 0;
         return {
-            x: entity.x - entity.hitW / 2,
-            y: entity.y - entity.hitH / 2,
+            x: entity.x - entity.hitW / 2 + hitOffsetX,
+            y: entity.y - entity.hitH / 2 + hitOffsetY,
             w: entity.hitW,
             h: entity.hitH
         };

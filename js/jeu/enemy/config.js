@@ -57,15 +57,16 @@ window.ENEMY_TYPE_CONFIGS = {
         scale: 1.3,
         hp: 1500,
         maxhp: 1500,
-        hitW: 76,
-        hitH: 96,
-        attackHitW: 128,
-        attackHitH: 128,
-        contactDamage: 12,
+        hitW: 66,
+        hitH: 82,
+        attackHitW: 150,
+        attackHitH: 150,
+        contactDamage: 8,
         minDistancePadding: 0,
         flipWhenFacingRight: true,
         freezeMovementDuringAttack: true,
-        attackRange: 60
+        attackCooldownMs: 1100,
+        attackRange: 92
     },
     slime2: {
         spriteSrc: "../assets/sprites/Slime2/Without_shadow/Slime2_Walk_without_shadow.png",

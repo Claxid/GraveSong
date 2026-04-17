@@ -103,7 +103,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
 
     const BASE_ATTACK_STATS = {
         cooldown: 2000,
-        damage: 10,
+        damage: 12,
         animSpeed: 4,
         sizeMultiplier: 3,
         range: 220,
@@ -123,9 +123,9 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         spinSpeed: 0.10,
         radius: 72,
         angularSpeed: 0.045,
-        damageMultiplier: 1.35,
-        infernalDamageMultiplier: 3.25,
-        hitCooldown: 220,
+        damageMultiplier: 1.2,
+        infernalDamageMultiplier: 2.35,
+        hitCooldown: 260,
         size: 60,
         lastHitByEnemy: new Map()
     };
@@ -135,7 +135,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         count: 0,
         cooldown: 3000,
         speed: 4.5,
-        damageMultiplier: 1.6,
+        damageMultiplier: 1.8,
         size: 44,
         hitRadius: 20,
         maxTravel: 1000,
@@ -153,10 +153,10 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
     const chaosAuraState = {
         active: false,
         radius: 75,
-        damage: 22,
+        damage: 26,
         cooldown: 2000,
         sizeMultiplier: 1,
-        damageMultiplier: 1,
+        damageMultiplier: 1.15,
         cooldownMultiplier: 1,
         nextPulseAt: 0,
         frames: [],
@@ -179,7 +179,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         pullRadius: 140,
         pullStrength: 2.1,
         bossPullResistance: 3.6,
-        damageMultiplier: 1,
+        damageMultiplier: 1.15,
         size: 240,
         minEnemyCount: 3,
         lifetimeMs: 5000,
@@ -188,7 +188,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         endDurationMs: 800,
         loopFrameDurationMs: 85,
         damageTickMs: 500,
-        damagePerTick: 2,
+        damagePerTick: 3,
         startFrames: [],
         loopFrames: [],
         endFrames: []
@@ -903,10 +903,33 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         };
     }
 
-    function applyDamageAndKnockback(enemy, damage, sourceX, sourceY, knockbackStrength = 8) {
-        const safeEnemyHp = Number.isFinite(enemy.hp) ? enemy.hp : (Number.isFinite(enemy.maxhp) ? enemy.maxhp : 0);
+    function reportDamageDealt(source, amount, enemy) {
+        if (!Number.isFinite(amount) || amount <= 0) return;
+        if (typeof window.recordTowerDamage !== "function") return;
+
+        window.recordTowerDamage({
+            source,
+            amount,
+            enemyType: enemy && enemy.type ? enemy.type : "unknown"
+        });
+    }
+
+    function applyEnemyDamage(enemy, damage, source) {
+        if (!enemy) return 0;
+
+        const safeEnemyHp = Number.isFinite(enemy.hp)
+            ? enemy.hp
+            : (Number.isFinite(enemy.maxhp) ? enemy.maxhp : 0);
         const safeDamage = Math.max(1, Math.round(Number.isFinite(damage) ? damage : attackStats.damage));
+        const appliedDamage = Math.max(0, Math.min(safeEnemyHp, safeDamage));
+
         enemy.hp = Math.max(0, safeEnemyHp - safeDamage);
+        reportDamageDealt(source, appliedDamage, enemy);
+        return appliedDamage;
+    }
+
+    function applyDamageAndKnockback(enemy, damage, sourceX, sourceY, knockbackStrength = 8) {
+        applyEnemyDamage(enemy, damage, "Impact");
 
         const kx = enemy.x - sourceX;
         const ky = enemy.y - sourceY;
@@ -1000,7 +1023,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
                     const hitDistance = auraRadius + enemyRadius;
                     if ((dx * dx + dy * dy) > hitDistance * hitDistance) continue;
 
-                    enemy.hp = Math.max(0, enemy.hp - auraDamage);
+                    applyEnemyDamage(enemy, auraDamage, "Aura chaotique");
 
                     if (!chaosAuraState.knockbackAppliedEnemies.has(enemy)) {
                         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -1071,7 +1094,8 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
 
                     // Axe one-shots regular gobelins but not tanky Orc3.
                     const appliedAxeDamage = enemy.type === "gobelin" ? enemy.hp : axeDamage;
-                    enemy.hp = Math.max(0, enemy.hp - appliedAxeDamage);
+                    const axeSource = isInfernalAxeActive() ? "Hache infernale" : "Hache tournoyante";
+                    applyEnemyDamage(enemy, appliedAxeDamage, axeSource);
                     axeState.lastHitByEnemy.set(cooldownKey, now);
                 }
             }
@@ -1157,7 +1181,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
                     const dy = enemy.y - blackHole.y;
                     const affectRadius = getBlackHolePullRadiusForEnemy(enemy);
                     if ((dx * dx + dy * dy) > (affectRadius * affectRadius)) continue;
-                    enemy.hp = Math.max(0, enemy.hp - damagePerTick);
+                    applyEnemyDamage(enemy, damagePerTick, "Trou noir");
                 }
                 blackHole.lastDamageAt = now;
             }
@@ -1189,7 +1213,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
                 if ((dx * dx + dy * dy) > hitDistance * hitDistance) continue;
 
                 const appliedFireballDamage = enemy.type === "gobelin" ? enemy.hp : fireballDamage;
-                enemy.hp = Math.max(0, enemy.hp - appliedFireballDamage);
+                applyEnemyDamage(enemy, appliedFireballDamage, "Boule de feu");
                 spawnFireballExplosion(fireball.x, fireball.y);
                 hit = true;
                 break;
@@ -1233,7 +1257,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
                     const enemyAngle = Math.atan2(dy, dx);
                     const delta = Math.abs(normalizeAngle(enemyAngle - atk.angle));
                     if (delta > attackStats.halfAngle) continue;
-                    enemy.hp = Math.max(0, enemy.hp - attackStats.damage);
+                    applyEnemyDamage(enemy, attackStats.damage, "Coup d'epee");
                 }
                 atk.hitApplied = true;
             }

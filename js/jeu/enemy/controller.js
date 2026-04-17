@@ -45,10 +45,16 @@ window.createEnemyController = function createEnemyController(canvas, ctx, camer
         maxhp: enemyConfig.maxhp,
         baseHitW: enemyConfig.hitW,
         baseHitH: enemyConfig.hitH,
+        baseHitOffsetX: enemyConfig.hitOffsetX || 0,
+        baseHitOffsetY: enemyConfig.hitOffsetY || 0,
         attackHitW: enemyConfig.attackHitW || enemyConfig.hitW,
         attackHitH: enemyConfig.attackHitH || enemyConfig.hitH,
+        attackHitOffsetX: enemyConfig.attackHitOffsetX || 0,
+        attackHitOffsetY: enemyConfig.attackHitOffsetY || 0,
         hitW: enemyConfig.hitW,
         hitH: enemyConfig.hitH,
+        hitOffsetX: enemyConfig.hitOffsetX || 0,
+        hitOffsetY: enemyConfig.hitOffsetY || 0,
         attackRange: enemyConfig.attackRange || Math.max(enemyConfig.hitW, enemyConfig.hitH) * 1.5,
         minDistancePadding: enemyConfig.minDistancePadding || 8,
         attackCooldownMs: enemyConfig.attackCooldownMs || 450,
@@ -83,11 +89,15 @@ window.createEnemyController = function createEnemyController(canvas, ctx, camer
         if (state === "attack") {
             enemy.hitW = enemy.attackHitW;
             enemy.hitH = enemy.attackHitH;
+            enemy.hitOffsetX = enemy.attackHitOffsetX;
+            enemy.hitOffsetY = enemy.attackHitOffsetY;
             return;
         }
 
         enemy.hitW = enemy.baseHitW;
         enemy.hitH = enemy.baseHitH;
+        enemy.hitOffsetX = enemy.baseHitOffsetX;
+        enemy.hitOffsetY = enemy.baseHitOffsetY;
     }
 
     function updateAnimationFrameCount(sprite) {
