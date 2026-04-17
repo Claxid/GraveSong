@@ -108,6 +108,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         sizeMultiplier: 3,
         range: 220,
         halfAngle: Math.PI / 3,
+        lifeLeechLevel: 0,
         Axe: 0,
         Fireball: 0,
         ChaosAura: 0,
@@ -492,6 +493,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
     const FIREBALL_UNLOCK_PERK_ID = "fireball_unlock";
     const FIREBALL_COUNT_PERK_ID = "fireball_count_up";
     const FIREBALL_COOLDOWN_PERK_ID = "fireball_cooldown_down";
+    const LIFE_LEECH_PERK_ID = "life_leech_up";
     const FIREBALL_UNLOCK_LEVEL = 6;
     const BLACK_HOLE_UNLOCK_PERK_ID = "black_hole_unlock";
     const BLACK_HOLE_COUNT_PERK_ID = "black_hole_count_up";
@@ -554,8 +556,32 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         return blackHoleState.size;
     }
 
+    function getLifeLeechRatio() {
+        return Math.max(0, (Number(attackStats.lifeLeechLevel) || 0) * 0.0025);
+    }
+
+    function applyLifeLeechFromDamage(damageDealt) {
+        if (!Number.isFinite(damageDealt) || damageDealt <= 0) return;
+        const ratio = getLifeLeechRatio();
+        if (ratio <= 0) return;
+        const healAmount = damageDealt * ratio;
+        if (healAmount <= 0) return;
+        player.hp = Math.min(player.maxHp, player.hp + healAmount);
+    }
+
+    function dealDamage(enemy, rawDamage) {
+        if (!enemy || !Number.isFinite(enemy.hp)) return 0;
+        const beforeHp = Math.max(0, enemy.hp);
+        if (beforeHp <= 0) return 0;
+        const amount = Math.max(1, Math.round(Number.isFinite(rawDamage) ? rawDamage : attackStats.damage));
+        const afterHp = Math.max(0, beforeHp - amount);
+        enemy.hp = afterHp;
+        return beforeHp - afterHp;
+    }
+
     const perkPool = [
         { id: "damage_up", name: "Serment sanglant", description: "+25% degats d'attaque.", apply: ({ attackStats: s }) => { s.damage = Math.round(s.damage * 1.25); } },
+        { id: LIFE_LEECH_PERK_ID, name: "Leech life", description: "+0.25% vol de vie par niveau de perk.", apply: ({ attackStats: s }) => { s.lifeLeechLevel = (Number(s.lifeLeechLevel) || 0) + 1; } },
         { id: "cooldown_down", name: "Ferveur noire", description: "Attaques 20% plus rapides.", apply: ({ attackStats: s }) => { s.cooldown = Math.max(250, Math.round(s.cooldown * 0.8)); } },
         { id: "range_up", name: "Lame allongee", description: "+20% de portee.", apply: ({ attackStats: s }) => { s.range = Math.round(s.range * 1.2); } },
         { id: "arc_up", name: "Croissant maudit", description: "Arc d'attaque +15 degres.", apply: ({ attackStats: s }) => { s.halfAngle = Math.min(Math.PI, s.halfAngle + (Math.PI / 12)); } },
@@ -904,9 +930,8 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
     }
 
     function applyDamageAndKnockback(enemy, damage, sourceX, sourceY, knockbackStrength = 8) {
-        const safeEnemyHp = Number.isFinite(enemy.hp) ? enemy.hp : (Number.isFinite(enemy.maxhp) ? enemy.maxhp : 0);
-        const safeDamage = Math.max(1, Math.round(Number.isFinite(damage) ? damage : attackStats.damage));
-        enemy.hp = Math.max(0, safeEnemyHp - safeDamage);
+        const damageDealt = dealDamage(enemy, damage);
+        applyLifeLeechFromDamage(damageDealt);
 
         const kx = enemy.x - sourceX;
         const ky = enemy.y - sourceY;
@@ -1000,7 +1025,8 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
                     const hitDistance = auraRadius + enemyRadius;
                     if ((dx * dx + dy * dy) > hitDistance * hitDistance) continue;
 
-                    enemy.hp = Math.max(0, enemy.hp - auraDamage);
+                    const damageDealt = dealDamage(enemy, auraDamage);
+                    applyLifeLeechFromDamage(damageDealt);
 
                     if (!chaosAuraState.knockbackAppliedEnemies.has(enemy)) {
                         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -1071,7 +1097,8 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
 
                     // Axe one-shots regular gobelins but not tanky Orc3.
                     const appliedAxeDamage = enemy.type === "gobelin" ? enemy.hp : axeDamage;
-                    enemy.hp = Math.max(0, enemy.hp - appliedAxeDamage);
+                    const damageDealt = dealDamage(enemy, appliedAxeDamage);
+                    applyLifeLeechFromDamage(damageDealt);
                     axeState.lastHitByEnemy.set(cooldownKey, now);
                 }
             }
@@ -1157,7 +1184,8 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
                     const dy = enemy.y - blackHole.y;
                     const affectRadius = getBlackHolePullRadiusForEnemy(enemy);
                     if ((dx * dx + dy * dy) > (affectRadius * affectRadius)) continue;
-                    enemy.hp = Math.max(0, enemy.hp - damagePerTick);
+                    const damageDealt = dealDamage(enemy, damagePerTick);
+                    applyLifeLeechFromDamage(damageDealt);
                 }
                 blackHole.lastDamageAt = now;
             }
@@ -1189,7 +1217,8 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
                 if ((dx * dx + dy * dy) > hitDistance * hitDistance) continue;
 
                 const appliedFireballDamage = enemy.type === "gobelin" ? enemy.hp : fireballDamage;
-                enemy.hp = Math.max(0, enemy.hp - appliedFireballDamage);
+                const damageDealt = dealDamage(enemy, appliedFireballDamage);
+                applyLifeLeechFromDamage(damageDealt);
                 spawnFireballExplosion(fireball.x, fireball.y);
                 hit = true;
                 break;
@@ -1233,7 +1262,8 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
                     const enemyAngle = Math.atan2(dy, dx);
                     const delta = Math.abs(normalizeAngle(enemyAngle - atk.angle));
                     if (delta > attackStats.halfAngle) continue;
-                    enemy.hp = Math.max(0, enemy.hp - attackStats.damage);
+                    const damageDealt = dealDamage(enemy, attackStats.damage);
+                    applyLifeLeechFromDamage(damageDealt);
                 }
                 atk.hitApplied = true;
             }

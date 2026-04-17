@@ -261,7 +261,7 @@ if (fireKnightBoss && fireKnightBoss.boss.hp > 0) {
     ctx.font = uiStyles.levelFont;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(`${playerController.player.hp}/${playerController.player.maxHp}`, barX + barWidth / 2, barY + barHeight / 2);
+    ctx.fillText(`${Math.floor(playerController.player.hp)}/${Math.floor(playerController.player.maxHp)}`, barX + barWidth / 2, barY + barHeight / 2);
 
     const expBarWidth = uiStyles.expBarWidth;
     const expBarX = (canvas.width / 2) - (expBarWidth / 2);
