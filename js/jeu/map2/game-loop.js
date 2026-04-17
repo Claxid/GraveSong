@@ -5,9 +5,20 @@ function loop() {
 
     const canUpdateWorld = !playerController.hasPendingPerks() && !deathCinematic.active && !teleportCinematic.active;
 
+    // Helper function for clamping values
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
     if (canUpdateWorld) {
         const enemies = isMap1 ? enemyControllers.map((controller) => controller.enemy) : [];
+        if (fireKnightBoss && fireKnightBoss.boss && fireKnightBoss.boss.hp > 0) {
+            enemies.push(fireKnightBoss.boss);
+        }
         playerController.update(enemies);
+        
+        // Update Fire Knight Boss on Map 2
+        if (fireKnightBoss && fireKnightBoss.boss.hp > 0) {
+            fireKnightBoss.update(playerController.player);
+        }
     }
 
     if (canUpdateWorld && isMap1) {
@@ -53,6 +64,26 @@ function loop() {
             killCount += 1;
             givePlayerExp(ENEMY_KILL_EXP);
         }
+
+        // Handle Fire Knight Boss defeat
+        if (fireKnightBoss && fireKnightBoss.boss.hp <= 0 && !bossDefeated) {
+            bossDefeated = true;
+            const BOSS_KILL_EXP = 850;
+            givePlayerExp(BOSS_KILL_EXP);
+            
+            // Drop healing potions
+            for (let i = 0; i < 3; i++) {
+                const angle = (Math.PI * 2 * i) / 3;
+                potions.push({
+                    x: fireKnightBoss.boss.x + Math.cos(angle) * 100,
+                    y: fireKnightBoss.boss.y + Math.sin(angle) * 100,
+                    w: 32,
+                    h: 32,
+                    healAmount: 25
+                });
+            }
+            runtimeLogger.success("Fire Knight Boss defeated!");
+        }
     }
 
     if (playerController.player.level > lastProcessedLevel) {
@@ -95,6 +126,22 @@ function loop() {
         let touchingEnemy = false;
         let contactDamage = CONTACT_DAMAGE;
         const playerRadius = Math.max(playerController.player.hitW || 24, playerController.player.hitH || 35) / 2;
+        
+        // Check contact with boss
+        if (fireKnightBoss && fireKnightBoss.boss.hp > 0) {
+            const boss = fireKnightBoss.boss;
+            const bossRadius = Math.max(boss.hitW || 30, boss.hitH || 30) / 2;
+            const dx = boss.x - playerController.player.x;
+            const dy = boss.y - playerController.player.y;
+            const distanceSq = dx * dx + dy * dy;
+            const contactRange = playerRadius + bossRadius + 8;
+
+            if (distanceSq <= contactRange * contactRange) {
+                touchingEnemy = true;
+                contactDamage = Math.max(contactDamage, 8);
+            }
+        }
+        
         for (const enemyController of enemyControllers) {
             const enemy = enemyController.enemy;
             const enemyRadius = Math.max(enemy.hitW || 30, enemy.hitH || 30) / 2;
@@ -140,6 +187,10 @@ function loop() {
     mapRenderer.draw(cameraController.camera);
     playerController.draw();
     playerController.drawAttacks();
+
+if (fireKnightBoss && fireKnightBoss.boss.hp > 0) {
+        fireKnightBoss.draw();
+    }
 
     for (const enemyController of enemyControllers) {
         enemyController.draw();
@@ -244,6 +295,11 @@ function loop() {
     const perkChoices = playerController.getCurrentPerkChoices();
     if (perkChoices) {
         drawPerkOverlay(perkChoices);
+    }
+
+    // Draw Fire Knight Boss health bar
+    if (fireKnightBoss) {
+        window.Map2BossSystem.drawBossHealthBar(ctx, canvas, clamp, fireKnightBoss.boss, bossHealthBarSprites);
     }
 
     drawDeathCinematicOverlay(now);

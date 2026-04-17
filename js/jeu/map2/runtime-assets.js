@@ -2,6 +2,15 @@ const nightmareStatueSprite0 = new Image();
 nightmareStatueSprite0.src = "../assets/images/statue_cauchemar(0).png";
 const nightmareStatueSprite1 = new Image();
 nightmareStatueSprite1.src = "../assets/images/statue_cauchemar(1).png";
+const bossHpUnderSprite = new Image();
+window.GameRuntimeLogger?.trackImage(bossHpUnderSprite, "Boss HP Under", "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_under.png");
+bossHpUnderSprite.src = "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_under.png";
+const bossHpProgressSprite = new Image();
+window.GameRuntimeLogger?.trackImage(bossHpProgressSprite, "Boss HP Progress", "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_progress.png");
+bossHpProgressSprite.src = "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_progress.png";
+const bossHpOverSprite = new Image();
+window.GameRuntimeLogger?.trackImage(bossHpOverSprite, "Boss HP Over", "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_over.png");
+bossHpOverSprite.src = "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_over.png";
 
 function getCssVar(name, fallback) {
     return window.GameUiUtils.getCssVar(canvas, name, fallback);
@@ -103,4 +112,12 @@ function getSpawnBatchSize(now) {
 
 function givePlayerExp(amount) {
     window.GameProgressionUtils.givePlayerExp(playerController.player, amount);
+}
+
+function drawBossHealthBar(bossEnemy) {
+    window.Map2BossSystem.drawBossHealthBar(ctx, canvas, clamp, bossEnemy, {
+        under: bossHpUnderSprite,
+        progress: bossHpProgressSprite,
+        over: bossHpOverSprite
+    });
 }

@@ -37,6 +37,23 @@ runtimeLogger.success("Controles principaux initialises", {
 });
 const enemyControllers = [];
 const potions = [];
+const bossHpUnderSprite = new Image();
+runtimeLogger.trackStep("Boss HP Under sprite load", () => {
+    bossHpUnderSprite.src = "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_under.png";
+});
+const bossHpProgressSprite = new Image();
+runtimeLogger.trackStep("Boss HP Progress sprite load", () => {
+    bossHpProgressSprite.src = "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_progress.png";
+});
+const bossHpOverSprite = new Image();
+runtimeLogger.trackStep("Boss HP Over sprite load", () => {
+    bossHpOverSprite.src = "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_over.png";
+});
+const bossHealthBarSprites = {
+    under: bossHpUnderSprite,
+    progress: bossHpProgressSprite,
+    over: bossHpOverSprite
+};
 
 const GOBELIN_POTION_DROP_CHANCE = 0.02;
 const ORC3_POTION_DROP_CHANCE = 0.04;
@@ -93,6 +110,9 @@ let lastProcessedLevel = playerController.player.level;
 let gameStartAt = performance.now();
 let lastSpawnAt = gameStartAt;
 let killCount = 0;
+let fireKnightBoss = null;
+let bossDefeated = false;
+let lastBossDamageAt = 0;
 let deathCinematic = {
     active: false,
     startAt: 0,
@@ -143,6 +163,12 @@ for (let i = 0; i < INITIAL_ENEMY_COUNT; i++) {
     spawnEnemyNearPlayer();
 }
 runtimeLogger.success("Spawn initial termine", { enemyCount: enemyControllers.length });
+
+// Initialize Fire Knight Boss on Map 2
+if (typeof window.Map2BossSystem !== "undefined") {
+    fireKnightBoss = window.Map2BossSystem.createFireKnightBoss(1500, 1200, ctx, cameraController.camera);
+    runtimeLogger.success("Fire Knight Boss initialise");
+}
 
 window.addEventListener("keydown", (e) => {
     if (!playerController.hasPendingPerks()) return;
