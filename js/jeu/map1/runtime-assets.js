@@ -1,29 +1,20 @@
-const potionSprite = new Image();
-window.GameRuntimeLogger?.trackImage(potionSprite, "Potion", "../assets/sprites/potion/healing_potion.png");
-potionSprite.src = "../assets/sprites/potion/healing_potion.png";
-const bossHpUnderSprite = new Image();
-window.GameRuntimeLogger?.trackImage(bossHpUnderSprite, "Boss HP Under", "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_under.png");
-bossHpUnderSprite.src = "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_under.png";
-const bossHpProgressSprite = new Image();
-window.GameRuntimeLogger?.trackImage(bossHpProgressSprite, "Boss HP Progress", "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_progress.png");
-bossHpProgressSprite.src = "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_progress.png";
-const bossHpOverSprite = new Image();
-window.GameRuntimeLogger?.trackImage(bossHpOverSprite, "Boss HP Over", "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_over.png");
-bossHpOverSprite.src = "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_over.png";
-const nightmareStatueSprite0 = new Image();
-window.GameRuntimeLogger?.trackImage(nightmareStatueSprite0, "Statue Cauchemar 0", "../assets/images/statue_cauchemar(0).png");
-nightmareStatueSprite0.src = "../assets/images/statue_cauchemar(0).png";
-const nightmareStatueSprite1 = new Image();
-window.GameRuntimeLogger?.trackImage(nightmareStatueSprite1, "Statue Cauchemar 1", "../assets/images/statue_cauchemar(1).png");
-nightmareStatueSprite1.src = "../assets/images/statue_cauchemar(1).png";
+function createTrackedImage(label, src) {
+    if (window.GameImageUtils && typeof window.GameImageUtils.createTrackedImage === "function") {
+        return window.GameImageUtils.createTrackedImage(label, src);
+    }
 
-function getCssVar(name, fallback) {
-    return window.GameUiUtils.getCssVar(canvas, name, fallback);
+    const image = new Image();
+    window.GameRuntimeLogger?.trackImage(image, label, src);
+    image.src = src;
+    return image;
 }
 
-function getCssNumber(name, fallback) {
-    return window.GameUiUtils.getCssNumber(canvas, name, fallback);
-}
+const potionSprite = createTrackedImage("Potion", "../assets/sprites/potion/healing_potion.png");
+const bossHpUnderSprite = createTrackedImage("Boss HP Under", "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_under.png");
+const bossHpProgressSprite = createTrackedImage("Boss HP Progress", "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_progress.png");
+const bossHpOverSprite = createTrackedImage("Boss HP Over", "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_over.png");
+const nightmareStatueSprite0 = createTrackedImage("Statue Cauchemar 0", "../assets/images/statue_cauchemar(0).png");
+const nightmareStatueSprite1 = createTrackedImage("Statue Cauchemar 1", "../assets/images/statue_cauchemar(1).png");
 
 function readUiStyles() {
     return window.GameUiUtils.readUiStyles(canvas);

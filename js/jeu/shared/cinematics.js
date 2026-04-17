@@ -1,4 +1,37 @@
 window.GameCinematics = (() => {
+    function getFlashPhases(flashStartAt, flashInMs, flashHoldMs, flashOutMs) {
+        const flashPhase1 = flashStartAt + flashInMs;
+        const flashPhase2 = flashPhase1 + flashHoldMs;
+        const flashPhase3 = flashPhase2 + flashOutMs;
+        return { flashPhase1, flashPhase2, flashPhase3 };
+    }
+
+    function computeFlashAlpha(clamp, elapsed, flashStartAt, flashInMs, flashHoldMs, flashOutMs) {
+        const phases = getFlashPhases(flashStartAt, flashInMs, flashHoldMs, flashOutMs);
+
+        if (elapsed >= flashStartAt && elapsed <= phases.flashPhase1) {
+            return {
+                alpha: clamp((elapsed - flashStartAt) / Math.max(1, flashInMs), 0, 1),
+                phases
+            };
+        }
+
+        if (elapsed <= phases.flashPhase2) {
+            return { alpha: 1, phases };
+        }
+
+        if (elapsed <= phases.flashPhase3) {
+            const fadeT = (elapsed - phases.flashPhase2) / Math.max(1, flashOutMs);
+            return { alpha: 1 - clamp(fadeT, 0, 1), phases };
+        }
+
+        return { alpha: 0, phases };
+    }
+
+    function isImageReady(image) {
+        return Boolean(image && image.complete && image.naturalWidth > 0 && image.naturalHeight > 0);
+    }
+
     function startDeath(state, onComplete) {
         if (state.active) return;
         state.active = true;
@@ -44,20 +77,16 @@ window.GameCinematics = (() => {
 
         const clamp = window.GameUiUtils.clamp;
         const elapsed = now - state.startAt;
-        const flashStartAt = 1200;
-        const flashPhase1 = flashStartAt + options.flashInMs;
-        const flashPhase2 = flashPhase1 + options.flashHoldMs;
-        const flashPhase3 = flashPhase2 + options.flashOutMs;
-
-        let whiteAlpha = 0;
-        if (elapsed >= flashStartAt && elapsed <= flashPhase1) {
-            whiteAlpha = clamp((elapsed - flashStartAt) / Math.max(1, options.flashInMs), 0, 1);
-        } else if (elapsed <= flashPhase2) {
-            whiteAlpha = 1;
-        } else if (elapsed <= flashPhase3) {
-            const fadeT = (elapsed - flashPhase2) / Math.max(1, options.flashOutMs);
-            whiteAlpha = 1 - clamp(fadeT, 0, 1);
-        }
+        const flash = computeFlashAlpha(
+            clamp,
+            elapsed,
+            1200,
+            options.flashInMs,
+            options.flashHoldMs,
+            options.flashOutMs
+        );
+        const whiteAlpha = flash.alpha;
+        const flashPhase2 = flash.phases.flashPhase2;
 
         const statue0BaseAlpha = clamp(elapsed / 520, 0, 1);
         const statue1FadeIn = clamp((elapsed - flashPhase2) / 760, 0, 1);
@@ -83,8 +112,8 @@ window.GameCinematics = (() => {
             ctx.drawImage(image, drawX, drawY, drawW, drawH);
         };
 
-        const sprite0Ready = options.sprite0.complete && options.sprite0.naturalWidth > 0;
-        const sprite1Ready = options.sprite1.complete && options.sprite1.naturalWidth > 0;
+        const sprite0Ready = isImageReady(options.sprite0);
+        const sprite1Ready = isImageReady(options.sprite1);
 
         if (sprite0Ready) drawFittedImage(options.sprite0, statue0Alpha, 0, 0);
         if (sprite1Ready) drawFittedImage(options.sprite1, statue1Alpha, options.statue1OffsetX, options.statue1OffsetY);
@@ -117,20 +146,14 @@ window.GameCinematics = (() => {
 
         const clamp = window.GameUiUtils.clamp;
         const elapsed = now - state.startAt;
-        const flashStartAt = 180;
-        const flashPhase1 = flashStartAt + options.flashInMs;
-        const flashPhase2 = flashPhase1 + options.flashHoldMs;
-        const flashPhase3 = flashPhase2 + options.flashOutMs;
-
-        let glowAlpha = 0;
-        if (elapsed >= flashStartAt && elapsed <= flashPhase1) {
-            glowAlpha = clamp((elapsed - flashStartAt) / Math.max(1, options.flashInMs), 0, 1);
-        } else if (elapsed <= flashPhase2) {
-            glowAlpha = 1;
-        } else if (elapsed <= flashPhase3) {
-            const fadeT = (elapsed - flashPhase2) / Math.max(1, options.flashOutMs);
-            glowAlpha = 1 - clamp(fadeT, 0, 1);
-        }
+        const glowAlpha = computeFlashAlpha(
+            clamp,
+            elapsed,
+            180,
+            options.flashInMs,
+            options.flashHoldMs,
+            options.flashOutMs
+        ).alpha;
 
         const outerAlpha = clamp((elapsed - 80) / 420, 0, 1) * 0.4;
         const pulseT = clamp(elapsed / options.durationMs, 0, 1);

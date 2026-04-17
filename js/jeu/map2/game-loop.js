@@ -4,27 +4,49 @@ function loop() {
     updateTeleportCinematic(now);
 
     const canUpdateWorld = !playerController.hasPendingPerks() && !deathCinematic.active && !teleportCinematic.active;
+    const bossDeathAnimRunning = Boolean(
+        fireKnightBoss &&
+        typeof fireKnightBoss.isDeathAnimationFinished === "function" &&
+        !fireKnightBoss.isDeathAnimationFinished()
+    );
+
+    // Helper function for clamping values
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
     if (canUpdateWorld) {
         const enemies = isMap1 ? enemyControllers.map((controller) => controller.enemy) : [];
+        if (fireKnightBoss && fireKnightBoss.boss && fireKnightBoss.boss.hp > 0) {
+            enemies.push(fireKnightBoss.boss);
+        }
         playerController.update(enemies);
+        
+        // Update Fire Knight Boss on Map 2
+        if (fireKnightBoss && (fireKnightBoss.boss.hp > 0 || bossDeathAnimRunning)) {
+            fireKnightBoss.update(playerController.player);
+        }
     }
 
     if (canUpdateWorld && isMap1) {
-        const now = performance.now();
-        const progressionCap = getMaxEnemyCount(now);
-        const warmupCap = getMap2WarmupEnemyCap(now);
-        const maxEnemies = Math.min(progressionCap, warmupCap);
-        const spawnInterval = getSpawnInterval(now);
-        const spawnBatchSize = getSpawnBatchSize(now);
+        if (!bossSpawned && !bossDefeated && now - gameStartAt >= MAP2_BOSS_SPAWN_DELAY_MS) {
+            spawnBossNearPlayer();
+        }
 
-        if (enemyControllers.length < maxEnemies && now - lastSpawnAt >= spawnInterval) {
+        const isBossAlive = Boolean(fireKnightBoss && fireKnightBoss.boss && fireKnightBoss.boss.hp > 0);
+
+        const nowTick = performance.now();
+        const progressionCap = getMaxEnemyCount(nowTick);
+        const warmupCap = getMap2WarmupEnemyCap(nowTick);
+        const maxEnemies = Math.min(progressionCap, warmupCap);
+        const spawnInterval = getSpawnInterval(nowTick);
+        const spawnBatchSize = getSpawnBatchSize(nowTick);
+
+        if (!isBossAlive && enemyControllers.length < maxEnemies && nowTick - lastSpawnAt >= spawnInterval) {
             const availableSlots = maxEnemies - enemyControllers.length;
             const spawnCount = Math.min(spawnBatchSize, availableSlots);
             for (let i = 0; i < spawnCount; i++) {
                 spawnEnemyNearPlayer();
             }
-            lastSpawnAt = now;
+            lastSpawnAt = nowTick;
         }
 
         for (const enemyController of enemyControllers) {
@@ -52,6 +74,41 @@ function loop() {
             enemyControllers.splice(i, 1);
             killCount += 1;
             givePlayerExp(ENEMY_KILL_EXP);
+        }
+
+        // Handle Fire Knight Boss defeat
+        if (fireKnightBoss && fireKnightBoss.boss.hp <= 0 && !bossDefeated) {
+            bossDefeated = true;
+            bossDefeatedAt = performance.now();
+            bossDeathAnimationCompletedAt = 0;
+            enemyControllers.length = 0;
+            potions.length = 0;
+            if (typeof fireKnightBoss.startDeathAnimation === "function") {
+                fireKnightBoss.startDeathAnimation();
+            }
+            runtimeLogger.success("Fire Knight Boss defeated - game finished");
+        }
+
+        const bossDeathDone = Boolean(
+            bossDefeated &&
+            fireKnightBoss &&
+            typeof fireKnightBoss.isDeathAnimationFinished === "function" &&
+            fireKnightBoss.isDeathAnimationFinished()
+        );
+        if (bossDeathDone && bossDeathAnimationCompletedAt <= 0) {
+            bossDeathAnimationCompletedAt = performance.now();
+        }
+
+        const canStartEndCinematic = Boolean(
+            bossDeathDone &&
+            bossDeathAnimationCompletedAt > 0 &&
+            now - bossDeathAnimationCompletedAt >= BOSS_DEATH_TO_END_CINEMATIC_DELAY_MS
+        );
+        if (canStartEndCinematic && !deathCinematic.active && !gameFinished) {
+            startDeathCinematic(() => {
+                gameFinished = true;
+                gameFinishedAt = performance.now();
+            });
         }
     }
 
@@ -95,6 +152,22 @@ function loop() {
         let touchingEnemy = false;
         let contactDamage = CONTACT_DAMAGE;
         const playerRadius = Math.max(playerController.player.hitW || 24, playerController.player.hitH || 35) / 2;
+        
+        // Check contact with boss
+        if (fireKnightBoss && fireKnightBoss.boss.hp > 0) {
+            const boss = fireKnightBoss.boss;
+            const bossRadius = Math.max(boss.hitW || 30, boss.hitH || 30) / 2;
+            const dx = boss.x - playerController.player.x;
+            const dy = boss.y - playerController.player.y;
+            const distanceSq = dx * dx + dy * dy;
+            const contactRange = playerRadius + bossRadius + 8;
+
+            if (distanceSq <= contactRange * contactRange) {
+                touchingEnemy = true;
+                contactDamage = Math.max(contactDamage, 6);
+            }
+        }
+        
         for (const enemyController of enemyControllers) {
             const enemy = enemyController.enemy;
             const enemyRadius = Math.max(enemy.hitW || 30, enemy.hitH || 30) / 2;
@@ -140,6 +213,10 @@ function loop() {
     mapRenderer.draw(cameraController.camera);
     playerController.draw();
     playerController.drawAttacks();
+
+    if (fireKnightBoss && (fireKnightBoss.boss.hp > 0 || bossDeathAnimRunning)) {
+        fireKnightBoss.draw();
+    }
 
     for (const enemyController of enemyControllers) {
         enemyController.draw();
@@ -210,7 +287,7 @@ function loop() {
     ctx.font = uiStyles.levelFont;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(`${playerController.player.hp}/${playerController.player.maxHp}`, barX + barWidth / 2, barY + barHeight / 2);
+    ctx.fillText(`${Math.floor(playerController.player.hp)}/${Math.floor(playerController.player.maxHp)}`, barX + barWidth / 2, barY + barHeight / 2);
 
     const expBarWidth = uiStyles.expBarWidth;
     const expBarX = (canvas.width / 2) - (expBarWidth / 2);
@@ -241,13 +318,60 @@ function loop() {
     ctx.textBaseline = "top";
     ctx.fillText(`Kills : ${killCount}`, canvas.width - uiStyles.killOffsetRight, uiStyles.killOffsetTop);
 
+    const elapsedTime = window.GameUiUtils.formatElapsedTime(performance.now() - gameStartAt);
+    ctx.fillStyle = uiStyles.timerTextColor;
+    ctx.font = uiStyles.timerFont;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "top";
+    ctx.fillText(`Temps : ${elapsedTime}`, canvas.width - uiStyles.timerOffsetRight, uiStyles.timerOffsetTop);
+
     const perkChoices = playerController.getCurrentPerkChoices();
     if (perkChoices) {
         drawPerkOverlay(perkChoices);
     }
 
+    // Draw Fire Knight Boss health bar
+    if (fireKnightBoss && fireKnightBoss.boss.hp > 0) {
+        window.Map2BossSystem.drawBossHealthBar(ctx, canvas, clamp, fireKnightBoss.boss, bossHealthBarSprites);
+    }
+
     drawDeathCinematicOverlay(now);
     drawTeleportCinematicOverlay(now);
+
+    if (gameFinished) {
+        ctx.save();
+        if (victoryParchmentSprite.complete && victoryParchmentSprite.naturalWidth > 0) {
+            ctx.drawImage(victoryParchmentSprite, 0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "rgba(34, 20, 10, 0.22)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        } else {
+            ctx.fillStyle = "#d9c19a";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        ctx.fillStyle = "#f4ecc9";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "700 84px Georgia";
+        ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
+        ctx.shadowBlur = 5;
+        ctx.fillText("FIN", canvas.width / 2, canvas.height / 2 - 12);
+        ctx.shadowBlur = 3;
+        ctx.font = "700 24px Georgia";
+        ctx.fillText("Le Fire Knight est vaincu.", canvas.width / 2, canvas.height / 2 + 44);
+        ctx.restore();
+
+        if (!isChangingMap && now - gameFinishedAt >= GAME_FINISH_HOLD_MS) {
+            if (typeof playerController.clearPersistentProgress === "function") {
+                playerController.clearPersistentProgress();
+            }
+            isChangingMap = true;
+            window.location.href = "ville.html";
+            return;
+        }
+
+        requestAnimationFrame(loop);
+        return;
+    }
 
     requestAnimationFrame(loop);
 }

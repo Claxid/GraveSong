@@ -108,6 +108,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         sizeMultiplier: 3,
         range: 220,
         halfAngle: Math.PI / 3,
+        lifeLeechLevel: 0,
         Axe: 0,
         Fireball: 0,
         ChaosAura: 0,
@@ -220,101 +221,9 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
     const fireballExplosions = [];
     const blackHoles = [];
 
-    function extractSpriteRectsFromSheet(image, { removeNearBlack = true, maxRects = 2, minArea = 24 } = {}) {
-        const canvasProbe = document.createElement("canvas");
-        canvasProbe.width = image.naturalWidth;
-        canvasProbe.height = image.naturalHeight;
-        const probeCtx = canvasProbe.getContext("2d", { willReadFrequently: true });
-        if (!probeCtx) return { canvas: null, rects: [] };
-
-        probeCtx.drawImage(image, 0, 0);
-        const imageData = probeCtx.getImageData(0, 0, canvasProbe.width, canvasProbe.height);
-        const data = imageData.data;
-        const width = canvasProbe.width;
-        const height = canvasProbe.height;
-
-        const mask = new Uint8Array(width * height);
-
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                const idx = (y * width + x) * 4;
-                const r = data[idx];
-                const g = data[idx + 1];
-                const b = data[idx + 2];
-                const a = data[idx + 3];
-
-                const isNearBlack = removeNearBlack && (r < 26 && g < 26 && b < 26);
-                if (a < 20 || isNearBlack) {
-                    data[idx + 3] = 0;
-                    continue;
-                }
-                mask[y * width + x] = 1;
-            }
-        }
-
-        probeCtx.putImageData(imageData, 0, 0);
-
-        const visited = new Uint8Array(width * height);
-        const rects = [];
-
-        const neighbors = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                const start = y * width + x;
-                if (!mask[start] || visited[start]) continue;
-
-                let minX = x;
-                let minY = y;
-                let maxX = x;
-                let maxY = y;
-                let pixelCount = 0;
-
-                const queue = [start];
-                visited[start] = 1;
-
-                while (queue.length > 0) {
-                    const current = queue.pop();
-                    const cx = current % width;
-                    const cy = Math.floor(current / width);
-                    pixelCount++;
-
-                    if (cx < minX) minX = cx;
-                    if (cy < minY) minY = cy;
-                    if (cx > maxX) maxX = cx;
-                    if (cy > maxY) maxY = cy;
-
-                    for (const [dx, dy] of neighbors) {
-                        const nx = cx + dx;
-                        const ny = cy + dy;
-                        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-                        const ni = ny * width + nx;
-                        if (!mask[ni] || visited[ni]) continue;
-                        visited[ni] = 1;
-                        queue.push(ni);
-                    }
-                }
-
-                if (pixelCount < minArea) continue;
-                const pad = 1;
-                const sx = Math.max(0, minX - pad);
-                const sy = Math.max(0, minY - pad);
-                const sw = Math.min(width - sx, (maxX - minX + 1) + pad * 2);
-                const sh = Math.min(height - sy, (maxY - minY + 1) + pad * 2);
-                rects.push({ sx, sy, sw, sh, area: pixelCount });
-            }
-        }
-
-        // Keep only first visual elements from top-left to bottom-right.
-        rects.sort((a, b) => (a.sy - b.sy) || (a.sx - b.sx));
-        return {
-            canvas: canvasProbe,
-            rects: rects.slice(0, Math.max(1, maxRects)).map((r) => ({ sx: r.sx, sy: r.sy, sw: r.sw, sh: r.sh }))
-        };
-    }
-
     fireballSprite.addEventListener("load", () => {
         try {
-            const extracted = extractSpriteRectsFromSheet(fireballSprite, { removeNearBlack: true, maxRects: 2, minArea: 40 });
+            const extracted = window.GameSpriteUtils.extractSpriteRectsFromSheet(fireballSprite, { removeNearBlack: true, maxRects: 2, minArea: 40 });
             fireballProcessedSprite = extracted.canvas;
             fireballSkinRects = extracted.rects;
         } catch (_err) {
@@ -325,7 +234,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
 
     fireballExplosionSprite.addEventListener("load", () => {
         try {
-            const extracted = extractSpriteRectsFromSheet(fireballExplosionSprite, { removeNearBlack: true, maxRects: 2, minArea: 140 });
+            const extracted = window.GameSpriteUtils.extractSpriteRectsFromSheet(fireballExplosionSprite, { removeNearBlack: true, maxRects: 2, minArea: 140 });
             explosionProcessedSprite = extracted.canvas;
             explosionSkinRects = extracted.rects;
         } catch (_err) {
@@ -334,70 +243,9 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         }
     });
 
-    function extractAxeSpriteBounds(image) {
-        const probeCanvas = document.createElement("canvas");
-        probeCanvas.width = image.naturalWidth;
-        probeCanvas.height = image.naturalHeight;
-        const probeCtx = probeCanvas.getContext("2d", { willReadFrequently: true });
-        if (!probeCtx) return { sourceRect: null, pivot: null };
-
-        probeCtx.drawImage(image, 0, 0);
-        const data = probeCtx.getImageData(0, 0, probeCanvas.width, probeCanvas.height).data;
-
-        let minX = probeCanvas.width;
-        let minY = probeCanvas.height;
-        let maxX = -1;
-        let maxY = -1;
-        let sumX = 0;
-        let sumY = 0;
-        let sumWeight = 0;
-
-        for (let y = 0; y < probeCanvas.height; y++) {
-            for (let x = 0; x < probeCanvas.width; x++) {
-                const idx = (y * probeCanvas.width + x) * 4;
-                const r = data[idx];
-                const g = data[idx + 1];
-                const b = data[idx + 2];
-                const a = data[idx + 3];
-
-                if (a < 20 || (r < 20 && g < 20 && b < 20)) continue;
-
-                const weight = Math.max(1, a);
-                sumX += x * weight;
-                sumY += y * weight;
-                sumWeight += weight;
-
-                if (x < minX) minX = x;
-                if (y < minY) minY = y;
-                if (x > maxX) maxX = x;
-                if (y > maxY) maxY = y;
-            }
-        }
-
-        if (maxX < minX || maxY < minY) {
-            return { sourceRect: null, pivot: null };
-        }
-
-        const pad = 2;
-        const sx = Math.max(0, minX - pad);
-        const sy = Math.max(0, minY - pad);
-        const sw = Math.min(probeCanvas.width - sx, (maxX - minX + 1) + pad * 2);
-        const sh = Math.min(probeCanvas.height - sy, (maxY - minY + 1) + pad * 2);
-
-        return {
-            sourceRect: { sx, sy, sw, sh },
-            pivot: sumWeight > 0
-                ? {
-                    x: (sumX / sumWeight) - sx,
-                    y: (sumY / sumWeight) - sy
-                }
-                : null
-        };
-    }
-
     axeSprite.addEventListener("load", () => {
         try {
-            const bounds = extractAxeSpriteBounds(axeSprite);
+            const bounds = window.GameSpriteUtils.extractAxeSpriteBounds(axeSprite);
             axeSourceRect = bounds.sourceRect;
             axePivot = bounds.pivot;
         } catch (_err) {
@@ -408,7 +256,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
 
     infernalAxeSprite.addEventListener("load", () => {
         try {
-            const bounds = extractAxeSpriteBounds(infernalAxeSprite);
+            const bounds = window.GameSpriteUtils.extractAxeSpriteBounds(infernalAxeSprite);
             infernalAxeSourceRect = bounds.sourceRect;
             infernalAxePivot = bounds.pivot;
         } catch (_err) {
@@ -482,6 +330,46 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         return attackVisualScale * Math.max(1, rangeVisualBonus);
     }
 
+    const perkSystem = window.GamePlayerPerkSystem.createPlayerPerkSystem({
+        player,
+        attackStats,
+        fireballState,
+        chaosAuraState,
+        blackHoleState,
+        axeState,
+        ids: {
+            axe: AXE_PERK_ID,
+            lifeLeech: LIFE_LEECH_PERK_ID,
+            chaosAuraUnlock: CHAOS_AURA_UNLOCK_PERK_ID,
+            chaosAuraSize: CHAOS_AURA_SIZE_PERK_ID,
+            chaosAuraDamage: CHAOS_AURA_DAMAGE_PERK_ID,
+            chaosAuraCooldown: CHAOS_AURA_COOLDOWN_PERK_ID,
+            fireballUnlock: FIREBALL_UNLOCK_PERK_ID,
+            fireballCount: FIREBALL_COUNT_PERK_ID,
+            fireballCooldown: FIREBALL_COOLDOWN_PERK_ID,
+            blackHoleUnlock: BLACK_HOLE_UNLOCK_PERK_ID,
+            blackHoleCount: BLACK_HOLE_COUNT_PERK_ID,
+            blackHoleDamage: BLACK_HOLE_DAMAGE_PERK_ID,
+            blackHoleCooldown: BLACK_HOLE_COOLDOWN_PERK_ID,
+            skillPerks: SKILL_PERK_IDS
+        },
+        levels: {
+            axeUnlock: AXE_UNLOCK_LEVEL,
+            chaosAuraUnlock: CHAOS_AURA_UNLOCK_LEVEL,
+            fireballUnlock: FIREBALL_UNLOCK_LEVEL,
+            blackHoleUnlock: BLACK_HOLE_UNLOCK_LEVEL
+        },
+        getAxeCount,
+        getAxePerkCard,
+        isChaosAuraUnlocked,
+        isFireballUnlocked,
+        isBlackHoleUnlocked,
+        getChaosAuraCooldownMs,
+        syncDerivedAttackVisualStats
+    });
+
+    const pendingPerkChoices = perkSystem.pendingPerkChoices;
+
     const AXE_PERK_ID = "Axe";
     const AXE_UNLOCK_LEVEL = 5;
     const CHAOS_AURA_UNLOCK_PERK_ID = "chaos_aura_unlock";
@@ -492,6 +380,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
     const FIREBALL_UNLOCK_PERK_ID = "fireball_unlock";
     const FIREBALL_COUNT_PERK_ID = "fireball_count_up";
     const FIREBALL_COOLDOWN_PERK_ID = "fireball_cooldown_down";
+    const LIFE_LEECH_PERK_ID = "life_leech_up";
     const FIREBALL_UNLOCK_LEVEL = 6;
     const BLACK_HOLE_UNLOCK_PERK_ID = "black_hole_unlock";
     const BLACK_HOLE_COUNT_PERK_ID = "black_hole_count_up";
@@ -554,130 +443,43 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         return blackHoleState.size;
     }
 
-    const perkPool = [
-        { id: "damage_up", name: "Serment sanglant", description: "+25% degats d'attaque.", apply: ({ attackStats: s }) => { s.damage = Math.round(s.damage * 1.25); } },
-        { id: "cooldown_down", name: "Ferveur noire", description: "Attaques 20% plus rapides.", apply: ({ attackStats: s }) => { s.cooldown = Math.max(250, Math.round(s.cooldown * 0.8)); } },
-        { id: "range_up", name: "Lame allongee", description: "+20% de portee.", apply: ({ attackStats: s }) => { s.range = Math.round(s.range * 1.2); } },
-        { id: "arc_up", name: "Croissant maudit", description: "Arc d'attaque +15 degres.", apply: ({ attackStats: s }) => { s.halfAngle = Math.min(Math.PI, s.halfAngle + (Math.PI / 12)); } },
-        { id: "Axe", name: "Hache runique", description: "Ajoute 1 hache orbitale.", apply: ({ attackStats: s }) => { s.Axe = Math.min(5, (Number(s.Axe) || 0) + 1); } },
-        { id: CHAOS_AURA_UNLOCK_PERK_ID, name: "Halo profane", description: "Debloque l'aura du chaos.", apply: ({ attackStats: s }) => { s.ChaosAura = Math.max(1, (Number(s.ChaosAura) || 0) + 1); } },
-        { id: CHAOS_AURA_SIZE_PERK_ID, name: "Voile vaste", description: "Aura: +10% de rayon.", apply: ({ chaosAuraState: a }) => { a.sizeMultiplier *= 1.1; } },
-        { id: CHAOS_AURA_DAMAGE_PERK_ID, name: "Brulure astrale", description: "Aura: +15% degats.", apply: ({ chaosAuraState: a }) => { a.damageMultiplier *= 1.15; } },
-        { id: CHAOS_AURA_COOLDOWN_PERK_ID, name: "Pulse interdit", description: "Aura: -10% cooldown.", apply: ({ chaosAuraState: a }) => { a.cooldownMultiplier *= 0.9; } },
-        { id: FIREBALL_UNLOCK_PERK_ID, name: "Braise impie", description: "Debloque les fireballs.", apply: ({ attackStats: s }) => { s.Fireball = Math.max(1, (Number(s.Fireball) || 0) + 1); } },
-        { id: FIREBALL_COUNT_PERK_ID, name: "Salve ardente", description: "Ajoute 1 fireball.", apply: ({ attackStats: s }) => { s.Fireball = (Number(s.Fireball) || 0) + 1; } },
-        { id: FIREBALL_COOLDOWN_PERK_ID, name: "Cendres vives", description: "Fireballs: -20% cooldown.", apply: ({ fireballState: f }) => { f.cooldown = Math.max(400, Math.round(f.cooldown * 0.8)); } },
-        { id: BLACK_HOLE_UNLOCK_PERK_ID, name: "Abyme", description: "Debloque le trou noir (5 s).", apply: ({ attackStats: s }) => { s.BlackHole = Math.max(1, (Number(s.BlackHole) || 0) + 1); } },
-        { id: BLACK_HOLE_COUNT_PERK_ID, name: "Faille jumelle", description: "Ajoute 1 trou noir.", apply: ({ attackStats: s }) => { s.BlackHole = (Number(s.BlackHole) || 0) + 1; } },
-        { id: BLACK_HOLE_DAMAGE_PERK_ID, name: "Gueule obscure", description: "Trou noir: +15% degats.", apply: ({ blackHoleState: b }) => { b.damageMultiplier *= 1.15; } },
-        { id: BLACK_HOLE_COOLDOWN_PERK_ID, name: "Flux du vide", description: "Trou noir: -10% cooldown.", apply: ({ blackHoleState: b }) => { b.cooldownMultiplier *= 0.9; } }
-        
+    function getLifeLeechRatio() {
+        return Math.max(0, (Number(attackStats.lifeLeechLevel) || 0) * 0.0025);
+    }
 
-    ];
+    function applyLifeLeechFromDamage(damageDealt) {
+        if (!Number.isFinite(damageDealt) || damageDealt <= 0) return;
+        const ratio = getLifeLeechRatio();
+        if (ratio <= 0) return;
+        const healAmount = damageDealt * ratio;
+        if (healAmount <= 0) return;
+        player.hp = Math.min(player.maxHp, player.hp + healAmount);
+    }
 
-    const pendingPerkChoices = [];
-
-    function pickRandomPerks(count, forLevel = player.level) {
-        // Level 5: skill perks only, including black hole unlock.
-        if (forLevel === AXE_UNLOCK_LEVEL) {
-            const axePerk = getAxePerkCard();
-            const chaosAuraPerk = perkPool.find((perk) => perk.id === CHAOS_AURA_UNLOCK_PERK_ID);
-            const fireballPerk = perkPool.find((perk) => perk.id === FIREBALL_UNLOCK_PERK_ID);
-            const blackHolePerk = perkPool.find((perk) => perk.id === BLACK_HOLE_UNLOCK_PERK_ID);
-            const level5Choices = [axePerk, chaosAuraPerk, fireballPerk, blackHolePerk].filter(Boolean);
-
-            const shuffledLevel5 = level5Choices.slice();
-            for (let i = shuffledLevel5.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [shuffledLevel5[i], shuffledLevel5[j]] = [shuffledLevel5[j], shuffledLevel5[i]];
-            }
-
-            return shuffledLevel5.slice(0, Math.min(count, shuffledLevel5.length)).map((perk) => ({
-                id: perk.id,
-                name: perk.name,
-                description: perk.description
-            }));
-        }
-
-        const regularPerks = perkPool.filter((perk) => {
-            if (perk.id === AXE_PERK_ID && (forLevel < AXE_UNLOCK_LEVEL || getAxeCount() >= 5)) return false;
-            if (perk.id === CHAOS_AURA_UNLOCK_PERK_ID && forLevel < CHAOS_AURA_UNLOCK_LEVEL) return false;
-            if (perk.id === CHAOS_AURA_UNLOCK_PERK_ID && isChaosAuraUnlocked()) return false;
-            if ((perk.id === CHAOS_AURA_SIZE_PERK_ID || perk.id === CHAOS_AURA_DAMAGE_PERK_ID || perk.id === CHAOS_AURA_COOLDOWN_PERK_ID) && !isChaosAuraUnlocked()) return false;
-            if (perk.id === FIREBALL_UNLOCK_PERK_ID && forLevel < FIREBALL_UNLOCK_LEVEL) return false;
-            if (perk.id === FIREBALL_UNLOCK_PERK_ID && isFireballUnlocked()) return false;
-            if ((perk.id === FIREBALL_COUNT_PERK_ID || perk.id === FIREBALL_COOLDOWN_PERK_ID) && !isFireballUnlocked()) return false;
-            if (perk.id === BLACK_HOLE_UNLOCK_PERK_ID && forLevel < BLACK_HOLE_UNLOCK_LEVEL) return false;
-            if (perk.id === BLACK_HOLE_UNLOCK_PERK_ID && isBlackHoleUnlocked()) return false;
-            if ((perk.id === BLACK_HOLE_COUNT_PERK_ID || perk.id === BLACK_HOLE_DAMAGE_PERK_ID || perk.id === BLACK_HOLE_COOLDOWN_PERK_ID) && !isBlackHoleUnlocked()) return false;
-            return true;
-        });
-
-        // Level 5 should only contain skill perks by design; other levels use equal chance for all eligible perks.
-        const eligiblePerks = forLevel === AXE_UNLOCK_LEVEL
-            ? regularPerks.filter((perk) => SKILL_PERK_IDS.has(perk.id))
-            : regularPerks;
-
-        const shuffled = eligiblePerks.slice();
-        for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-        }
-
-        const selected = shuffled.slice(0, Math.min(count, shuffled.length));
-
-        return selected.map((perk) => {
-            if (perk.id === AXE_PERK_ID) {
-                return getAxePerkCard();
-            }
-
-            return {
-                id: perk.id,
-                name: perk.name,
-                description: perk.description
-            };
-        });
+    function dealDamage(enemy, rawDamage) {
+        if (!enemy || !Number.isFinite(enemy.hp)) return 0;
+        const beforeHp = Math.max(0, enemy.hp);
+        if (beforeHp <= 0) return 0;
+        const amount = Math.max(1, Math.round(Number.isFinite(rawDamage) ? rawDamage : attackStats.damage));
+        const afterHp = Math.max(0, beforeHp - amount);
+        enemy.hp = afterHp;
+        return beforeHp - afterHp;
     }
 
     function queuePerkChoices(levelsGained = 1) {
-        const firstGainedLevel = Math.max(1, player.level - levelsGained + 1);
-        for (let i = 0; i < levelsGained; i++) {
-            const levelForThisChoice = firstGainedLevel + i;
-            pendingPerkChoices.push(pickRandomPerks(3, levelForThisChoice));
-        }
+        return perkSystem.queuePerkChoices(levelsGained);
     }
 
     function getCurrentPerkChoices() {
-        if (pendingPerkChoices.length === 0) return null;
-        return pendingPerkChoices[0];
+        return perkSystem.getCurrentPerkChoices();
     }
 
     function hasPendingPerks() {
-        return pendingPerkChoices.length > 0;
+        return perkSystem.hasPendingPerks();
     }
 
     function applyPerkByIndex(idx) {
-        if (!hasPendingPerks()) return null;
-        const choices = pendingPerkChoices.shift();
-        const choice = choices[idx];
-        if (!choice) return null;
-        const perk = perkPool.find((p) => p.id === choice.id);
-        if (!perk) return null;
-        perk.apply({ attackStats, fireballState, chaosAuraState, blackHoleState });
-        axeState.count = getAxeCount();
-        axeState.active = axeState.count > 0;
-        chaosAuraState.active = isChaosAuraUnlocked();
-        if (chaosAuraState.active && chaosAuraState.nextPulseAt <= 0) {
-            const now = performance.now();
-            const initialDelayMs = Math.round(getChaosAuraCooldownMs() * 1.5);
-            chaosAuraState.nextPulseAt = now + initialDelayMs;
-        }
-        fireballState.count = Math.max(0, Number(attackStats.Fireball) || 0);
-        fireballState.active = fireballState.count > 0;
-        blackHoleState.count = Math.max(0, Number(attackStats.BlackHole) || 0);
-        blackHoleState.active = blackHoleState.count > 0;
-        syncDerivedAttackVisualStats();
-        return choice.id;
+        return perkSystem.applyPerkByIndex(idx);
     }
 
     function spawnFireballExplosion(x, y) {
@@ -914,31 +716,19 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         });
     }
 
+    const combatUtils = window.GamePlayerCombatUtils.createPlayerCombatUtils({
+        player,
+        attackStats,
+        reportDamageDealt,
+        getLifeLeechRatio
+    });
+
     function applyEnemyDamage(enemy, damage, source) {
-        if (!enemy) return 0;
-
-        const safeEnemyHp = Number.isFinite(enemy.hp)
-            ? enemy.hp
-            : (Number.isFinite(enemy.maxhp) ? enemy.maxhp : 0);
-        const safeDamage = Math.max(1, Math.round(Number.isFinite(damage) ? damage : attackStats.damage));
-        const appliedDamage = Math.max(0, Math.min(safeEnemyHp, safeDamage));
-
-        enemy.hp = Math.max(0, safeEnemyHp - safeDamage);
-        reportDamageDealt(source, appliedDamage, enemy);
-        return appliedDamage;
+        return combatUtils.applyEnemyDamage(enemy, damage, source);
     }
 
     function applyDamageAndKnockback(enemy, damage, sourceX, sourceY, knockbackStrength = 8) {
-        applyEnemyDamage(enemy, damage, "Impact");
-
-        const kx = enemy.x - sourceX;
-        const ky = enemy.y - sourceY;
-        const mag = Math.sqrt(kx * kx + ky * ky) || 1;
-        const pushX = (kx / mag) * knockbackStrength;
-        const pushY = (ky / mag) * knockbackStrength;
-
-        enemy.x += pushX;
-        enemy.y += pushY;
+        return combatUtils.applyDamageAndKnockback(enemy, damage, sourceX, sourceY, knockbackStrength);
     }
 
     function update(enemies = []) {
@@ -1545,6 +1335,12 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         syncDerivedAttackVisualStats();
     }
 
+    function setLifeLeechLevel(level) {
+        if (!Number.isFinite(level)) return false;
+        attackStats.lifeLeechLevel = Math.max(0, Math.floor(level));
+        return true;
+    }
+
     function savePersistentProgress() {
         try {
             const skipNextSave = sessionStorage.getItem(PLAYER_PROGRESS_SKIP_NEXT_SAVE_KEY) === "1";
@@ -1713,6 +1509,7 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
         applyPerkByIndex,
         triggerHurt,
         applyDevTestLoadout,
+        setLifeLeechLevel,
         savePersistentProgress,
         loadPersistentProgress,
         clearPersistentProgress,
