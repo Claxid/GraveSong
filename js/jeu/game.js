@@ -27,6 +27,13 @@ const DEATH_FLASH_HOLD_MS = 280;
 const DEATH_FLASH_OUT_MS = 900;
 const DEATH_FLASH_INTENSITY = 0.62;
 const DEATH_STATUE_SCALE = 0.78;
+const DEATH_STATUE1_OFFSET_X = 0;
+const DEATH_STATUE1_OFFSET_Y = -0.04;
+const TELEPORT_CINEMATIC_DURATION_MS = 1350;
+const TELEPORT_FLASH_IN_MS = 220;
+const TELEPORT_FLASH_HOLD_MS = 260;
+const TELEPORT_FLASH_OUT_MS = 520;
+const TELEPORT_GLOW_INTENSITY = 0.7;
 
 let gameStartAt = performance.now();
 let lastProcessedLevel = playerController.player.level;
@@ -41,6 +48,11 @@ let deathCinematic = {
     active: false,
     startAt: 0,
     onComplete: null
+};
+let teleportCinematic = {
+    active: false,
+    startAt: 0,
+    targetHref: null
 };
 
 const potionSystem = window.PotionSystem.createPotionSystem({
@@ -108,6 +120,29 @@ function updateDeathCinematic(now) {
     }
 }
 
+function startTeleportCinematic(targetHref) {
+    if (teleportCinematic.active) return;
+
+    teleportCinematic.active = true;
+    teleportCinematic.startAt = performance.now();
+    teleportCinematic.targetHref = targetHref;
+}
+
+function updateTeleportCinematic(now) {
+    if (!teleportCinematic.active) return;
+
+    const elapsed = now - teleportCinematic.startAt;
+    if (elapsed < TELEPORT_CINEMATIC_DURATION_MS) return;
+
+    const targetHref = teleportCinematic.targetHref;
+    teleportCinematic.active = false;
+    teleportCinematic.targetHref = null;
+
+    if (targetHref) {
+        window.location.href = targetHref;
+    }
+}
+
 function drawDeathCinematicOverlay(now) {
     if (!deathCinematic.active) return;
 
@@ -137,29 +172,87 @@ function drawDeathCinematicOverlay(now) {
     ctx.fillStyle = `rgba(0, 0, 0, ${darkness.toFixed(3)})`;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    function drawFittedImage(image, alpha) {
+    function drawFittedImage(image, alpha, offsetXRatio = 0, offsetYRatio = 0) {
         if (!image || !image.complete || image.naturalWidth <= 0 || image.naturalHeight <= 0 || alpha <= 0.001) {
             return;
         }
 
-        const scale = Math.min(canvas.width / image.naturalWidth, canvas.height / image.naturalHeight) * DEATH_STATUE_SCALE;
+        const scale = Math.max(canvas.width / image.naturalWidth, canvas.height / image.naturalHeight) * DEATH_STATUE_SCALE;
         const drawW = image.naturalWidth * scale;
         const drawH = image.naturalHeight * scale;
-        const drawX = (canvas.width - drawW) / 2;
-        const drawY = (canvas.height - drawH) / 2;
+        const drawX = (canvas.width - drawW) / 2 + offsetXRatio * canvas.width;
+        const drawY = (canvas.height - drawH) / 2 + offsetYRatio * canvas.height;
         ctx.globalAlpha = alpha;
         ctx.imageSmoothingEnabled = true;
         ctx.drawImage(image, drawX, drawY, drawW, drawH);
     }
 
     drawFittedImage(nightmareStatueSprite0, statue0Alpha);
-    drawFittedImage(nightmareStatueSprite1, statue1Alpha);
+    drawFittedImage(nightmareStatueSprite1, statue1Alpha, DEATH_STATUE1_OFFSET_X, DEATH_STATUE1_OFFSET_Y);
 
     if (whiteAlpha > 0.001) {
         ctx.globalAlpha = whiteAlpha * DEATH_FLASH_INTENSITY;
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
+    ctx.restore();
+}
+
+function drawTeleportCinematicOverlay(now) {
+    if (!teleportCinematic.active) return;
+
+    const elapsed = now - teleportCinematic.startAt;
+    const flashStartAt = 180;
+    const flashPhase1 = flashStartAt + TELEPORT_FLASH_IN_MS;
+    const flashPhase2 = flashPhase1 + TELEPORT_FLASH_HOLD_MS;
+    const flashPhase3 = flashPhase2 + TELEPORT_FLASH_OUT_MS;
+
+    let glowAlpha = 0;
+    if (elapsed >= flashStartAt && elapsed <= flashPhase1) {
+        glowAlpha = clamp((elapsed - flashStartAt) / Math.max(1, TELEPORT_FLASH_IN_MS), 0, 1);
+    } else if (elapsed <= flashPhase2) {
+        glowAlpha = 1;
+    } else if (elapsed <= flashPhase3) {
+        const fadeT = (elapsed - flashPhase2) / Math.max(1, TELEPORT_FLASH_OUT_MS);
+        glowAlpha = 1 - clamp(fadeT, 0, 1);
+    }
+
+    const outerAlpha = clamp((elapsed - 80) / 420, 0, 1) * 0.4;
+    const pulseT = clamp(elapsed / TELEPORT_CINEMATIC_DURATION_MS, 0, 1);
+    const pulseSize = 0.18 + pulseT * 0.42;
+
+    ctx.save();
+    ctx.fillStyle = `rgba(150, 220, 255, ${outerAlpha.toFixed(3)})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const gradient = ctx.createRadialGradient(
+        canvas.width * 0.5,
+        canvas.height * 0.5,
+        Math.min(canvas.width, canvas.height) * 0.05,
+        canvas.width * 0.5,
+        canvas.height * 0.5,
+        Math.min(canvas.width, canvas.height) * pulseSize
+    );
+    gradient.addColorStop(0, `rgba(255, 255, 255, ${Math.min(1, glowAlpha * 1.1)})`);
+    gradient.addColorStop(0.35, `rgba(170, 235, 255, ${glowAlpha * 0.95})`);
+    gradient.addColorStop(0.7, `rgba(75, 180, 255, ${glowAlpha * 0.45})`);
+    gradient.addColorStop(1, "rgba(75, 180, 255, 0)");
+
+    ctx.globalCompositeOperation = "screen";
+    ctx.filter = `blur(${12 + glowAlpha * 18}px)`;
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(canvas.width * 0.5, canvas.height * 0.5, Math.min(canvas.width, canvas.height) * pulseSize, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.filter = `blur(${4 + glowAlpha * 8}px)`;
+    ctx.fillStyle = `rgba(230, 250, 255, ${glowAlpha * TELEPORT_GLOW_INTENSITY})`;
+    ctx.beginPath();
+    ctx.arc(canvas.width * 0.5, canvas.height * 0.5, Math.min(canvas.width, canvas.height) * (0.14 + pulseT * 0.2), 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.filter = "none";
+    ctx.globalCompositeOperation = "source-over";
     ctx.restore();
 }
 
@@ -248,8 +341,9 @@ window.addEventListener("resize", () => {
 function loop() {
     const now = performance.now();
     updateDeathCinematic(now);
+    updateTeleportCinematic(now);
 
-    const canUpdateWorld = !playerController.hasPendingPerks() && !deathCinematic.active;
+    const canUpdateWorld = !playerController.hasPendingPerks() && !deathCinematic.active && !teleportCinematic.active;
 
     if (canUpdateWorld) {
         const enemies = isMap1 ? enemyControllers.map((c) => c.enemy) : [];
@@ -264,8 +358,7 @@ function loop() {
     }
     if (isMap1 && hadAliveBossThisRun && !aliveBoss && !isChangingMap) {
         isChangingMap = true;
-        window.location.href = "map2.html";
-        return;
+        startTeleportCinematic("map2.html");
     }
 
     if (canUpdateWorld) {
@@ -336,6 +429,7 @@ function loop() {
     }
 
     drawDeathCinematicOverlay(now);
+    drawTeleportCinematicOverlay(now);
 
     requestAnimationFrame(loop);
 }
