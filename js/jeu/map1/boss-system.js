@@ -27,7 +27,7 @@ window.Map1BossSystem = (() => {
             spawnY: startY,
             x: startX,
             y: startY,
-            speed: 1.05,
+            speed: 0.9,
             hp: 6000,
             maxhp: 6000,
             isBoss: true,
@@ -36,19 +36,19 @@ window.Map1BossSystem = (() => {
             state: "walk",
             frameIndex: 0,
             animCounter: 0,
-            animSpeed: 8,
+            animSpeed: 12,
             facingAngle: 0,
             attackRange: 230,
             attackHalfAngle: Math.PI / 4,
             attackDamage: 52,
-            attackCooldownMs: 1500,
-            attackWindupMs: 700,
-            attackDurationMs: 1300,
-            attackQuickChance: 0.38,
-            attackQuickReductionMinMs: 200,
-            attackQuickReductionMaxMs: 300,
-            currentAttackWindupMs: 700,
-            currentAttackDurationMs: 1300,
+            attackCooldownMs: 2100,
+            attackWindupMs: 850,
+            attackDurationMs: 1550,
+            attackQuickChance: 0.18,
+            attackQuickReductionMinMs: 120,
+            attackQuickReductionMaxMs: 180,
+            currentAttackWindupMs: 850,
+            currentAttackDurationMs: 1550,
             lastAttackAt: 0,
             isAttacking: false,
             attackStartedAt: 0,
@@ -109,8 +109,8 @@ window.Map1BossSystem = (() => {
                     const reductionMs = useQuickAttack
                         ? enemy.attackQuickReductionMinMs + Math.random() * (enemy.attackQuickReductionMaxMs - enemy.attackQuickReductionMinMs)
                         : 0;
-                    enemy.currentAttackDurationMs = Math.max(900, enemy.attackDurationMs - reductionMs);
-                    enemy.currentAttackWindupMs = Math.max(350, enemy.attackWindupMs - reductionMs * 0.6);
+                    enemy.currentAttackDurationMs = Math.max(1100, enemy.attackDurationMs - reductionMs);
+                    enemy.currentAttackWindupMs = Math.max(550, enemy.attackWindupMs - reductionMs * 0.45);
 
                     enemy.frameIndex = 0;
                     enemy.animCounter = 0;

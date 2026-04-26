@@ -9,6 +9,11 @@ function loop() {
         typeof fireKnightBoss.isDeathAnimationFinished === "function" &&
         !fireKnightBoss.isDeathAnimationFinished()
     );
+    const shouldDrawBoss = Boolean(
+        fireKnightBoss &&
+        fireKnightBoss.boss &&
+        (fireKnightBoss.boss.hp > 0 || bossDefeated)
+    );
 
     // Helper function for clamping values
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -20,7 +25,7 @@ function loop() {
         }
         playerController.update(enemies);
         
-        // Update Fire Knight Boss on Map 2
+        // Update Fire Demon Boss on Map 2
         if (fireKnightBoss && (fireKnightBoss.boss.hp > 0 || bossDeathAnimRunning)) {
             fireKnightBoss.update(playerController.player);
         }
@@ -76,7 +81,7 @@ function loop() {
             givePlayerExp(ENEMY_KILL_EXP);
         }
 
-        // Handle Fire Knight Boss defeat
+        // Handle Fire Demon Boss defeat
         if (fireKnightBoss && fireKnightBoss.boss.hp <= 0 && !bossDefeated) {
             bossDefeated = true;
             bossDefeatedAt = performance.now();
@@ -86,7 +91,7 @@ function loop() {
             if (typeof fireKnightBoss.startDeathAnimation === "function") {
                 fireKnightBoss.startDeathAnimation();
             }
-            runtimeLogger.success("Fire Knight Boss defeated - game finished");
+            runtimeLogger.success("Fire Demon Boss defeated - game finished");
         }
 
         const bossDeathDone = Boolean(
@@ -193,6 +198,12 @@ function loop() {
     if (playerController.player.hp <= 0 && !deathCinematic.active && !isChangingMap) {
         startDeathCinematic(() => {
             if (!isVilleMap && !isChangingMap) {
+                if (window.Map2Audio && typeof window.Map2Audio.markRestartOnNextLoad === "function") {
+                    window.Map2Audio.markRestartOnNextLoad();
+                }
+                if (window.Map2Audio && typeof window.Map2Audio.stopNow === "function") {
+                    window.Map2Audio.stopNow();
+                }
                 if (typeof playerController.clearPersistentProgress === "function") {
                     playerController.clearPersistentProgress();
                 }
@@ -214,7 +225,7 @@ function loop() {
     playerController.draw();
     playerController.drawAttacks();
 
-    if (fireKnightBoss && (fireKnightBoss.boss.hp > 0 || bossDeathAnimRunning)) {
+    if (shouldDrawBoss) {
         fireKnightBoss.draw();
     }
 
@@ -330,7 +341,7 @@ function loop() {
         drawPerkOverlay(perkChoices);
     }
 
-    // Draw Fire Knight Boss health bar
+    // Draw Fire Demon Boss health bar
     if (fireKnightBoss && fireKnightBoss.boss.hp > 0) {
         window.Map2BossSystem.drawBossHealthBar(ctx, canvas, clamp, fireKnightBoss.boss, bossHealthBarSprites);
     }
@@ -357,10 +368,16 @@ function loop() {
         ctx.fillText("FIN", canvas.width / 2, canvas.height / 2 - 12);
         ctx.shadowBlur = 3;
         ctx.font = "700 24px Georgia";
-        ctx.fillText("Le Fire Knight est vaincu.", canvas.width / 2, canvas.height / 2 + 44);
+        ctx.fillText("Le Fire Demon est vaincu.", canvas.width / 2, canvas.height / 2 + 44);
         ctx.restore();
 
         if (!isChangingMap && now - gameFinishedAt >= GAME_FINISH_HOLD_MS) {
+            if (window.Map2Audio && typeof window.Map2Audio.markRestartOnNextLoad === "function") {
+                window.Map2Audio.markRestartOnNextLoad();
+            }
+            if (window.Map2Audio && typeof window.Map2Audio.stopNow === "function") {
+                window.Map2Audio.stopNow();
+            }
             if (typeof playerController.clearPersistentProgress === "function") {
                 playerController.clearPersistentProgress();
             }

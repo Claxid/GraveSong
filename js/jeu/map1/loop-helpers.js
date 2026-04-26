@@ -61,6 +61,14 @@ function updateMap1EnemiesAndBoss(now) {
         bossDefeated = true;
         lastSpawnAt = now;
         if (!isChangingMap) {
+            if (window.Map1Audio && typeof window.Map1Audio.markRestartOnNextLoad === "function") {
+                window.Map1Audio.markRestartOnNextLoad();
+            } else {
+                sessionStorage.setItem("gravesong.map1.bgm.restartOnNextLoad", "1");
+            }
+            if (window.Map1Audio && typeof window.Map1Audio.stopNow === "function") {
+                window.Map1Audio.stopNow();
+            }
             if (typeof playerController.savePersistentProgress === "function") {
                 playerController.savePersistentProgress();
             }
@@ -124,7 +132,14 @@ function handlePlayerDeath() {
     startDeathCinematic(() => {
         if (!isVilleMap && !isChangingMap) {
             // Force map1 BGM to restart from 0 when the player comes back after death.
-            sessionStorage.setItem("gravesong.map1.bgm.restartOnNextLoad", "1");
+            if (window.Map1Audio && typeof window.Map1Audio.markRestartOnNextLoad === "function") {
+                window.Map1Audio.markRestartOnNextLoad();
+            } else {
+                sessionStorage.setItem("gravesong.map1.bgm.restartOnNextLoad", "1");
+            }
+            if (window.Map1Audio && typeof window.Map1Audio.stopNow === "function") {
+                window.Map1Audio.stopNow();
+            }
             if (typeof playerController.clearPersistentProgress === "function") {
                 playerController.clearPersistentProgress();
             }

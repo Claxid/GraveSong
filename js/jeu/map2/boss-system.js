@@ -13,20 +13,20 @@ window.Map2BossSystem = (() => {
             const frames = [];
             for (let i = 1; i <= count; i++) {
                 const frame = new Image();
-                frame.src = `../assets/sprites/Fire_boss/png/fire_knight/${folder}/${prefix}_${i}.png`;
+                frame.src = `../assets/sprites/boss_demon_slime_FREE_v1.0/boss_demon_slime_FREE_v1.0/individual sprites/${folder}/${prefix}_${i}.png`;
                 frames.push(frame);
             }
             return frames;
         }
 
         const frames = {
-            idle: loadFrames("01_idle", "idle", 8),
-            run: loadFrames("02_run", "run", 8),
-            atk1: loadFrames("05_1_atk", "1_atk", 11),
-            atk2: loadFrames("06_2_atk", "2_atk", 19),
-            atk3: loadFrames("07_3_atk", "3_atk", 28),
-            spAtk: loadFrames("08_sp_atk", "sp_atk", 18),
-            death: loadFrames("11_death", "death", 13)
+            idle: loadFrames("01_demon_idle", "demon_idle", 6),
+            run: loadFrames("02_demon_walk", "demon_walk", 12),
+            atk1: loadFrames("03_demon_cleave", "demon_cleave", 15),
+            atk2: loadFrames("04_demon_take_hit", "demon_take_hit", 5),
+            atk3: loadFrames("03_demon_cleave", "demon_cleave", 15),
+            spAtk: loadFrames("03_demon_cleave", "demon_cleave", 15),
+            death: loadFrames("05_demon_death", "demon_death", 22)
         };
 
         const boss = {
@@ -34,7 +34,7 @@ window.Map2BossSystem = (() => {
             spawnY: startY,
             x: startX,
             y: startY,
-            speed: 0.8,
+            speed: 1.15,
             hp: 6200,
             maxhp: 6200,
             isBoss: true,
@@ -43,62 +43,77 @@ window.Map2BossSystem = (() => {
             state: "run",
             frameIndex: 0,
             animCounter: 0,
-            animSpeed: 10,
+            animSpeed: 14,
+            animSpeedIdle: 24,
+            animSpeedAttackQuick: 10,
             facingAngle: 0,
             
             // Attack patterns with ground hazard zones
             attackPatterns: [
                 { 
                     type: "atk1", 
-                    range: 155, 
-                    halfAngle: Math.PI / 5, 
+                    range: 170, 
+                    halfAngle: Math.PI / 5.5, 
                     damage: 16,
-                    probability: 0.35, 
-                    windupMs: 500, 
-                    durationMs: 900, 
-                    cooldownMs: 2500,
+                    probability: 0.30, 
+                    windupMs: 360, 
+                    durationMs: 760, 
+                    cooldownMs: 1100,
                     hazardRadius: 70,
                     hazardCount: 1,
-                    hazardColor: "rgba(255, 100, 50, 0.6)"
+                    hazardColor: "rgba(255, 100, 50, 0.6)",
+                    hazardArmDelayMs: 420,
+                    hazardDamageCooldownMs: 520,
+                    hazardDamage: 6,
+                    phaseBias: [1.0, 1.1, 1.2]
                 },
                 { 
                     type: "atk2", 
-                    range: 180, 
-                    halfAngle: Math.PI / 4, 
-                    damage: 20,
-                    probability: 0.35, 
-                    windupMs: 800, 
-                    durationMs: 1400, 
-                    cooldownMs: 3200,
-                    hazardRadius: 80,
-                    hazardCount: 2,
-                    hazardColor: "rgba(255, 120, 30, 0.6)"
+                    range: 145, 
+                    halfAngle: Math.PI / 7, 
+                    damage: 13,
+                    probability: 0.24, 
+                    windupMs: 220, 
+                    durationMs: 520, 
+                    cooldownMs: 780,
+                    hazardRadius: 66,
+                    hazardCount: 0,
+                    hazardColor: "rgba(255, 120, 30, 0.5)",
+                    phaseBias: [0.9, 1.25, 1.45]
                 },
                 { 
                     type: "atk3", 
-                    range: 205, 
-                    halfAngle: Math.PI / 3, 
-                    damage: 24,
-                    probability: 0.20, 
-                    windupMs: 1200, 
-                    durationMs: 2200, 
-                    cooldownMs: 4000,
-                    hazardRadius: 90,
-                    hazardCount: 3,
-                    hazardColor: "rgba(255, 150, 0, 0.6)"
+                    range: 210, 
+                    halfAngle: Math.PI / 3.2, 
+                    damage: 21,
+                    probability: 0.28, 
+                    windupMs: 560, 
+                    durationMs: 1100, 
+                    cooldownMs: 1500,
+                    hazardRadius: 88,
+                    hazardCount: 2,
+                    hazardColor: "rgba(255, 150, 0, 0.62)",
+                    hazardArmDelayMs: 360,
+                    hazardDamageCooldownMs: 430,
+                    hazardDamage: 7,
+                    phaseBias: [1.0, 1.15, 1.35]
                 },
                 { 
                     type: "spAtk", 
                     range: 230, 
                     halfAngle: Math.PI / 2.5, 
-                    damage: 28,
-                    probability: 0.10, 
-                    windupMs: 1000, 
-                    durationMs: 1800, 
-                    cooldownMs: 5000,
-                    hazardRadius: 100,
+                    damage: 26,
+                    probability: 0.18, 
+                    windupMs: 760, 
+                    durationMs: 1450, 
+                    cooldownMs: 2100,
+                    hazardRadius: 104,
                     hazardCount: 4,
-                    hazardColor: "rgba(255, 200, 0, 0.7)"
+                    hazardColor: "rgba(255, 200, 0, 0.72)",
+                    hazardArmDelayMs: 300,
+                    hazardDamageCooldownMs: 360,
+                    hazardDamage: 8,
+                    phaseBias: [0.9, 1.15, 1.5]
                 }
             ],
             
@@ -114,6 +129,7 @@ window.Map2BossSystem = (() => {
             currentAttackWindupMs: 500,
             currentAttackDurationMs: 900,
             currentAttackPattern: null,
+            lastAttackType: null,
             attackLockX: startX,
             attackLockY: startY,
             attackAnchorOffsetX: ATTACK_ANCHOR_OFFSET_X,
@@ -158,9 +174,10 @@ window.Map2BossSystem = (() => {
                     color: pattern.hazardColor,
                     spawnedAt: performance.now(),
                     duration: pattern.durationMs + 200,
-                    armDelayMs: 550,
+                    armDelayMs: pattern.hazardArmDelayMs ?? 550,
+                    damagePerTick: pattern.hazardDamage ?? 6,
                     lastDamageAt: 0,
-                    damageCooldownMs: 600
+                    damageCooldownMs: pattern.hazardDamageCooldownMs ?? 600
                 });
             }
             
@@ -168,28 +185,43 @@ window.Map2BossSystem = (() => {
         }
 
         function getRandomAttackPattern() {
-            const roll = Math.random();
-            let cumulative = 0;
-            for (const pattern of boss.attackPatterns) {
-                cumulative += pattern.probability;
-                if (roll <= cumulative) {
+            const phaseIndex = Math.max(0, Math.min(2, boss.phase - 1));
+            const candidates = boss.attackPatterns.filter((pattern) => {
+                if (!boss.lastAttackType) return true;
+                if (boss.attackPatterns.length <= 1) return true;
+                return pattern.type !== boss.lastAttackType;
+            });
+
+            const pool = candidates.length > 0 ? candidates : boss.attackPatterns;
+            let totalWeight = 0;
+            for (const pattern of pool) {
+                const phaseBias = Array.isArray(pattern.phaseBias) ? (pattern.phaseBias[phaseIndex] ?? 1) : 1;
+                totalWeight += Math.max(0.001, pattern.probability * phaseBias);
+            }
+
+            let roll = Math.random() * totalWeight;
+            for (const pattern of pool) {
+                const phaseBias = Array.isArray(pattern.phaseBias) ? (pattern.phaseBias[phaseIndex] ?? 1) : 1;
+                roll -= Math.max(0.001, pattern.probability * phaseBias);
+                if (roll <= 0) {
                     return pattern;
                 }
             }
-            return boss.attackPatterns[0];
+
+            return pool[pool.length - 1] || boss.attackPatterns[0];
         }
 
         function updatePhase() {
             const hpRatio = boss.hp / boss.maxhp;
             let newPhase = 1;
-            let newAggressiveness = 1.0;
+            let newAggressiveness = 1.25;
 
             if (hpRatio < 0.33) {
                 newPhase = 3;
-                newAggressiveness = 1.6;
+                newAggressiveness = 2.1;
             } else if (hpRatio < 0.66) {
                 newPhase = 2;
-                newAggressiveness = 1.3;
+                newAggressiveness = 1.6;
             }
 
             if (newPhase !== boss.phase) {
@@ -223,7 +255,7 @@ window.Map2BossSystem = (() => {
                 if (distance < hazard.radius) {
                     // Apply damage with cooldown
                     if (now - hazard.lastDamageAt >= hazard.damageCooldownMs) {
-                        player.hp = Math.max(0, player.hp - 6);
+                        player.hp = Math.max(0, player.hp - hazard.damagePerTick);
                         hazard.lastDamageAt = now;
                     }
                     return true;
@@ -303,20 +335,21 @@ window.Map2BossSystem = (() => {
                 isPlayerInHazard(player);
                 
                 // Reduce cooldown based on phase
-                const baseCooldown = boss.attackPatterns.find(p => p.type === boss.currentAttackType)?.cooldownMs || 1200;
-                const adjustedCooldown = baseCooldown / boss.aggressiveness;
+                const baseCooldown = boss.currentAttackPattern?.cooldownMs ?? 950;
+                const adjustedCooldown = Math.max(220, baseCooldown / boss.aggressiveness);
                 
-                const canStartAttack = distance <= boss.attackRange && now - boss.lastAttackAt >= adjustedCooldown;
+                const canStartAttack = distance <= Math.max(boss.attackRange, 175) && now - boss.lastAttackAt >= adjustedCooldown;
                 
                 if (canStartAttack) {
                     const attackPattern = getRandomAttackPattern();
                     boss.currentAttackType = attackPattern.type;
+                    boss.lastAttackType = attackPattern.type;
                     boss.currentAttackPattern = attackPattern;
                     boss.attackRange = attackPattern.range;
                     boss.attackHalfAngle = attackPattern.halfAngle;
                     boss.attackDamage = Math.floor(attackPattern.damage * boss.aggressiveness);
-                    boss.currentAttackWindupMs = Math.floor(attackPattern.windupMs / boss.aggressiveness);
-                    boss.currentAttackDurationMs = Math.floor(attackPattern.durationMs / boss.aggressiveness);
+                    boss.currentAttackWindupMs = Math.max(80, Math.floor(attackPattern.windupMs / boss.aggressiveness));
+                    boss.currentAttackDurationMs = Math.max(220, Math.floor(attackPattern.durationMs / boss.aggressiveness));
                     boss.isAttacking = true;
                     boss.attackStartedAt = now;
                     boss.attackHitApplied = false;
@@ -328,7 +361,7 @@ window.Map2BossSystem = (() => {
                     boss.attackOriginY = attackAnchor.y;
                     boss.frameIndex = 0;
                     boss.animCounter = 0;
-                } else if (distance > 150) {
+                } else if (distance > 125) {
                     boss.state = "run";
                     if (distance > 0) {
                         boss.x += (dx / distance) * boss.speed;
@@ -349,7 +382,15 @@ window.Map2BossSystem = (() => {
             }
 
             boss.animCounter++;
-            if (boss.animCounter >= boss.animSpeed) {
+            const isQuickAttackState = Boolean(
+                boss.isAttacking &&
+                boss.currentAttackPattern &&
+                boss.currentAttackPattern.durationMs <= 900
+            );
+            const stateAnimSpeed = boss.state === "idle"
+                ? boss.animSpeedIdle
+                : (isQuickAttackState ? boss.animSpeedAttackQuick : boss.animSpeed);
+            if (boss.animCounter >= stateAnimSpeed) {
                 boss.animCounter = 0;
                 const currentFrames = frames[boss.state];
                 if (currentFrames) {
@@ -439,7 +480,17 @@ window.Map2BossSystem = (() => {
             if (sprite) {
                 const drawX = centerX - size / 2;
                 const drawY = centerY - size / 2;
-                ctx.drawImage(sprite, drawX, drawY, size, size);
+                const facingLeft = Math.cos(boss.facingAngle) > 0;
+
+                if (facingLeft) {
+                    ctx.save();
+                    ctx.translate(centerX, 0);
+                    ctx.scale(-1, 1);
+                    ctx.drawImage(sprite, -size / 2, drawY, size, size);
+                    ctx.restore();
+                } else {
+                    ctx.drawImage(sprite, drawX, drawY, size, size);
+                }
             } else {
                 // Fallback placeholder if sprite doesn't load
                 ctx.fillStyle = "rgba(220, 100, 50, 0.8)";
@@ -453,11 +504,11 @@ window.Map2BossSystem = (() => {
         return { boss, update, draw, startDeathAnimation, isDeathAnimationFinished };
     }
 
-    // Fire Knight label tuning (you can edit these values quickly)
-    const FIRE_KNIGHT_LABEL_SCALE = 0.20;
-    const FIRE_KNIGHT_LABEL_MIN_PX = 8;
-    const FIRE_KNIGHT_LABEL_FONT_FAMILY = '"Press Start 2P", "Pixelify Sans", "VT323", monospace';
-    const FIRE_KNIGHT_LABEL_Y_RATIO = 0.53;
+    // Fire Demon label tuning (you can edit these values quickly)
+    const FIRE_DEMON_LABEL_SCALE = 0.17;
+    const FIRE_DEMON_LABEL_MIN_PX = 8;
+    const FIRE_DEMON_LABEL_FONT_FAMILY = '"Press Start 2P", "Pixelify Sans", "VT323", monospace';
+    const FIRE_DEMON_LABEL_Y_RATIO = 0.48;
 
     function drawBossHealthBar(ctx, canvas, clamp, bossEnemy, sprites) {
         if (!bossEnemy) return;
@@ -507,22 +558,22 @@ window.Map2BossSystem = (() => {
                 ctx.restore();
             }
 
-            // Draw "FIRE KNIGHT" text in white on the health bar
+            // Draw "FIRE DEMON" text in white on the health bar
             ctx.save();
-            const labelSize = Math.max(FIRE_KNIGHT_LABEL_MIN_PX, Math.round(targetHeight * FIRE_KNIGHT_LABEL_SCALE));
+            const labelSize = Math.max(FIRE_DEMON_LABEL_MIN_PX, Math.round(targetHeight * FIRE_DEMON_LABEL_SCALE));
             const labelX = x + targetWidth / 2;
-            const labelY = y + targetHeight * FIRE_KNIGHT_LABEL_Y_RATIO;
+            const labelY = y + targetHeight * FIRE_DEMON_LABEL_Y_RATIO;
 
             // Boss1-like text style: light fill with dark outline.
             ctx.imageSmoothingEnabled = false;
-            ctx.font = `700 ${labelSize}px ${FIRE_KNIGHT_LABEL_FONT_FAMILY}`;
+            ctx.font = `700 ${labelSize}px ${FIRE_DEMON_LABEL_FONT_FAMILY}`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.lineWidth = Math.max(1, Math.round(labelSize * 0.2));
             ctx.strokeStyle = "rgba(58, 18, 26, 0.95)";
-            ctx.strokeText("FIRE KNIGHT", labelX, labelY);
+            ctx.strokeText("FIRE DEMON", labelX, labelY);
             ctx.fillStyle = "rgba(236, 236, 236, 0.9)";
-            ctx.fillText("FIRE KNIGHT", labelX, labelY);
+            ctx.fillText("FIRE DEMON", labelX, labelY);
             ctx.restore();
         } else {
             const fallbackH = 24;
@@ -536,15 +587,15 @@ window.Map2BossSystem = (() => {
             ctx.strokeRect(x, fallbackY, targetWidth, fallbackH);
             
             // Fallback text
-            const fallbackLabelSize = Math.max(FIRE_KNIGHT_LABEL_MIN_PX, Math.round(fallbackH * 0.4));
-            ctx.font = `700 ${fallbackLabelSize}px ${FIRE_KNIGHT_LABEL_FONT_FAMILY}`;
+            const fallbackLabelSize = Math.max(FIRE_DEMON_LABEL_MIN_PX, Math.round(fallbackH * 0.4));
+            ctx.font = `700 ${fallbackLabelSize}px ${FIRE_DEMON_LABEL_FONT_FAMILY}`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.lineWidth = Math.max(1, Math.round(fallbackLabelSize * 0.2));
             ctx.strokeStyle = "rgba(58, 18, 26, 0.95)";
-            ctx.strokeText("FIRE KNIGHT", canvas.width / 2, fallbackY + fallbackH * 0.53);
+            ctx.strokeText("FIRE DEMON", canvas.width / 2, fallbackY + fallbackH * 0.53);
             ctx.fillStyle = "rgba(236, 236, 236, 0.9)";
-            ctx.fillText("FIRE KNIGHT", canvas.width / 2, fallbackY + fallbackH * 0.53);
+            ctx.fillText("FIRE DEMON", canvas.width / 2, fallbackY + fallbackH * 0.53);
         }
     }
 

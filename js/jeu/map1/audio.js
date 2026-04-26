@@ -36,6 +36,21 @@
         sessionStorage.setItem(MAP1_BGM_TIME_KEY, String(bgm.currentTime || 0));
     };
 
+    const markRestartOnNextLoad = () => {
+        saveTime();
+        sessionStorage.setItem(MAP1_BGM_RESTART_KEY, "1");
+    };
+
+    const stopNow = () => {
+        saveTime();
+        bgm.pause();
+    };
+
+    window.Map1Audio = {
+        markRestartOnNextLoad,
+        stopNow
+    };
+
     const tryPlay = () => {
         bgm.play().catch(() => {
             // Browser autoplay policies can block until user interaction.

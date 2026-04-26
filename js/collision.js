@@ -2,6 +2,19 @@ window.obstacles = [];
 
 const MAP_IMAGE_SRC = "../assets/images/Ville.png";
 
+function createBorderObstacles(width, height, thickness = 16) {
+    return [
+        { x: 0, y: 0, w: width, h: thickness },
+        { x: 0, y: height - thickness, w: width, h: thickness },
+        { x: 0, y: 0, w: thickness, h: height },
+        { x: width - thickness, y: 0, w: thickness, h: height }
+    ];
+}
+
+function applyFallbackBorders(width = 3200, height = 3200) {
+    window.obstacles = createBorderObstacles(width, height, 16);
+}
+
 function idxAt(x, y, width) {
     return y * width + x;
 }
@@ -114,6 +127,7 @@ function analyzeMapImage() {
 
     mapImage.onerror = function(err) {
         console.error("❌ Impossible de charger la map pour les collisions", err);
+        applyFallbackBorders();
     };
 
     mapImage.onload = function() {
@@ -128,6 +142,7 @@ function analyzeMapImage() {
             imageData = ctx.getImageData(0, 0, mapImage.width, mapImage.height);
         } catch (e) {
             console.error("❌ getImageData a échoué (CORS ou file://). Servez les fichiers via un serveur local ou enlevez les restrictions CORS.", e);
+            applyFallbackBorders(mapImage.width || 3200, mapImage.height || 3200);
             return;
         }
         const data = imageData.data;
@@ -200,6 +215,7 @@ function analyzeMapImage() {
 
         if (!window.obstacles.length) {
             console.warn("Aucun obstacle détecté: vérifier les couleurs de la map ou le chargement de l'image.");
+            applyFallbackBorders(width, height);
         }
     };
 }

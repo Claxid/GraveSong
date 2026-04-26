@@ -101,7 +101,7 @@ const TELEPORT_FLASH_IN_MS = 220;
 const TELEPORT_FLASH_HOLD_MS = 260;
 const TELEPORT_FLASH_OUT_MS = 520;
 const TELEPORT_GLOW_INTENSITY = 0.7;
-const BOSS_DEATH_TO_END_CINEMATIC_DELAY_MS = 1200;
+const BOSS_DEATH_TO_END_CINEMATIC_DELAY_MS = 3000;
 const GAME_FINISH_HOLD_MS = 1800;
 const SHOW_HITBOXES = false;
 const isMap1 = window.location.pathname.replace(/\\/g, "/").endsWith("/template/map2.html");
@@ -187,7 +187,7 @@ function spawnBossNearPlayer() {
     fireKnightBoss = window.Map2BossSystem.createFireKnightBoss(spawn.x, spawn.y, ctx, cameraController.camera);
     bossSpawned = true;
     bossDefeated = false;
-    runtimeLogger.success("Fire Knight Boss spawn", { x: Math.round(spawn.x), y: Math.round(spawn.y) });
+    runtimeLogger.success("Fire Demon Boss spawn", { x: Math.round(spawn.x), y: Math.round(spawn.y) });
     return true;
 }
 
