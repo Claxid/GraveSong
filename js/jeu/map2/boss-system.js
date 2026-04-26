@@ -453,12 +453,18 @@ window.Map2BossSystem = (() => {
         return { boss, update, draw, startDeathAnimation, isDeathAnimationFinished };
     }
 
+    // Fire Knight label tuning (you can edit these values quickly)
+    const FIRE_KNIGHT_LABEL_SCALE = 0.20;
+    const FIRE_KNIGHT_LABEL_MIN_PX = 8;
+    const FIRE_KNIGHT_LABEL_FONT_FAMILY = '"Press Start 2P", "Pixelify Sans", "VT323", monospace';
+    const FIRE_KNIGHT_LABEL_Y_RATIO = 0.53;
+
     function drawBossHealthBar(ctx, canvas, clamp, bossEnemy, sprites) {
         if (!bossEnemy) return;
 
         const hpRatio = clamp(bossEnemy.hp / Math.max(1, bossEnemy.maxhp), 0, 1);
-        const uiReady = sprites.under.complete && sprites.progress.complete && sprites.over.complete &&
-            sprites.under.naturalWidth > 0 && sprites.progress.naturalWidth > 0 && sprites.over.naturalWidth > 0;
+        const uiReady = sprites.under.complete && sprites.progress.complete &&
+            sprites.under.naturalWidth > 0 && sprites.progress.naturalWidth > 0;
 
         const targetWidth = Math.min(canvas.width * 0.31, 380);
         const targetHeight = targetWidth * (sprites.under.naturalHeight / Math.max(1, sprites.under.naturalWidth));
@@ -466,8 +472,10 @@ window.Map2BossSystem = (() => {
         const y = 14;
 
         if (uiReady) {
+            // Draw background only
             ctx.drawImage(sprites.under, x, y, targetWidth, targetHeight);
 
+            // Draw health fill with clipping
             const fullSourceWidth = sprites.progress.naturalWidth;
             const sourceHeight = sprites.progress.naturalHeight;
             const filledSourceWidth = Math.max(0, Math.floor(fullSourceWidth * hpRatio));
@@ -499,27 +507,22 @@ window.Map2BossSystem = (() => {
                 ctx.restore();
             }
 
-            ctx.drawImage(sprites.over, x, y, targetWidth, targetHeight);
-
-            // Draw a cleaner centered boss title that matches the health bar style.
-            const titleH = Math.max(16, Math.round(targetHeight * 0.24));
-            const titleY = y + Math.max(2, Math.round(targetHeight * 0.205));
+            // Draw "FIRE KNIGHT" text in white on the health bar
             ctx.save();
-            const titleInset = Math.max(50, Math.round(targetWidth * 0.16));
-            const titleX = x + titleInset;
-            const titleW = targetWidth - titleInset * 2;
-            ctx.fillStyle = "rgba(12, 6, 6, 0.72)";
-            ctx.fillRect(titleX, titleY, titleW, titleH);
-            ctx.strokeStyle = "rgba(240, 205, 120, 0.8)";
-            ctx.lineWidth = 1;
-            ctx.strokeRect(titleX, titleY, titleW, titleH);
-            ctx.fillStyle = "rgba(247, 235, 198, 0.98)";
-            ctx.font = `700 ${Math.max(13, Math.round(titleH * 0.72))}px Georgia`;
+            const labelSize = Math.max(FIRE_KNIGHT_LABEL_MIN_PX, Math.round(targetHeight * FIRE_KNIGHT_LABEL_SCALE));
+            const labelX = x + targetWidth / 2;
+            const labelY = y + targetHeight * FIRE_KNIGHT_LABEL_Y_RATIO;
+
+            // Boss1-like text style: light fill with dark outline.
+            ctx.imageSmoothingEnabled = false;
+            ctx.font = `700 ${labelSize}px ${FIRE_KNIGHT_LABEL_FONT_FAMILY}`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-            ctx.shadowBlur = 3;
-            ctx.fillText("FIRE KNIGHT", x + targetWidth / 2, titleY + titleH / 2 + 1);
+            ctx.lineWidth = Math.max(1, Math.round(labelSize * 0.2));
+            ctx.strokeStyle = "rgba(58, 18, 26, 0.95)";
+            ctx.strokeText("FIRE KNIGHT", labelX, labelY);
+            ctx.fillStyle = "rgba(236, 236, 236, 0.9)";
+            ctx.fillText("FIRE KNIGHT", labelX, labelY);
             ctx.restore();
         } else {
             const fallbackH = 24;
@@ -531,6 +534,17 @@ window.Map2BossSystem = (() => {
             ctx.strokeStyle = "rgba(240, 205, 120, 0.9)";
             ctx.lineWidth = 2;
             ctx.strokeRect(x, fallbackY, targetWidth, fallbackH);
+            
+            // Fallback text
+            const fallbackLabelSize = Math.max(FIRE_KNIGHT_LABEL_MIN_PX, Math.round(fallbackH * 0.4));
+            ctx.font = `700 ${fallbackLabelSize}px ${FIRE_KNIGHT_LABEL_FONT_FAMILY}`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.lineWidth = Math.max(1, Math.round(fallbackLabelSize * 0.2));
+            ctx.strokeStyle = "rgba(58, 18, 26, 0.95)";
+            ctx.strokeText("FIRE KNIGHT", canvas.width / 2, fallbackY + fallbackH * 0.53);
+            ctx.fillStyle = "rgba(236, 236, 236, 0.9)";
+            ctx.fillText("FIRE KNIGHT", canvas.width / 2, fallbackY + fallbackH * 0.53);
         }
     }
 

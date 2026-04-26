@@ -5,6 +5,33 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
     const PLAYER_PROGRESS_STORAGE_KEY = "gravesong.playerProgress.v1";
     const PLAYER_PROGRESS_SKIP_NEXT_SAVE_KEY = "gravesong.playerProgress.skipNextSave";
 
+    // Déclarer les constantes perks au début pour éviter la Temporal Dead Zone
+    const AXE_PERK_ID = "Axe";
+    const AXE_UNLOCK_LEVEL = 5;
+    const CHAOS_AURA_UNLOCK_PERK_ID = "chaos_aura_unlock";
+    const CHAOS_AURA_SIZE_PERK_ID = "chaos_aura_size_up";
+    const CHAOS_AURA_DAMAGE_PERK_ID = "chaos_aura_damage_up";
+    const CHAOS_AURA_COOLDOWN_PERK_ID = "chaos_aura_cooldown_down";
+    const CHAOS_AURA_UNLOCK_LEVEL = 5;
+    const FIREBALL_UNLOCK_PERK_ID = "fireball_unlock";
+    const FIREBALL_COUNT_PERK_ID = "fireball_count_up";
+    const FIREBALL_COOLDOWN_PERK_ID = "fireball_cooldown_down";
+    const LIFE_LEECH_PERK_ID = "life_leech_up";
+    const FIREBALL_UNLOCK_LEVEL = 6;
+    const BLACK_HOLE_UNLOCK_PERK_ID = "black_hole_unlock";
+    const BLACK_HOLE_COUNT_PERK_ID = "black_hole_count_up";
+    const BLACK_HOLE_DAMAGE_PERK_ID = "black_hole_damage_up";
+    const BLACK_HOLE_COOLDOWN_PERK_ID = "black_hole_cooldown_down";
+    const BLACK_HOLE_UNLOCK_LEVEL = 5;
+    const SKILL_PERK_IDS = new Set([
+        AXE_PERK_ID,
+        CHAOS_AURA_UNLOCK_PERK_ID,
+        FIREBALL_UNLOCK_PERK_ID,
+        FIREBALL_COUNT_PERK_ID,
+        FIREBALL_COOLDOWN_PERK_ID,
+        BLACK_HOLE_UNLOCK_PERK_ID
+    ]);
+
     const sprite = new Image();
     sprite.src = "../assets/sprites/Characters(100x100)/Soldier/Soldier/Soldier-Walk.png";
 
@@ -369,32 +396,6 @@ function createPlayerController(canvas, ctx, camera, worldBounds = null) {
     });
 
     const pendingPerkChoices = perkSystem.pendingPerkChoices;
-
-    const AXE_PERK_ID = "Axe";
-    const AXE_UNLOCK_LEVEL = 5;
-    const CHAOS_AURA_UNLOCK_PERK_ID = "chaos_aura_unlock";
-    const CHAOS_AURA_SIZE_PERK_ID = "chaos_aura_size_up";
-    const CHAOS_AURA_DAMAGE_PERK_ID = "chaos_aura_damage_up";
-    const CHAOS_AURA_COOLDOWN_PERK_ID = "chaos_aura_cooldown_down";
-    const CHAOS_AURA_UNLOCK_LEVEL = 5;
-    const FIREBALL_UNLOCK_PERK_ID = "fireball_unlock";
-    const FIREBALL_COUNT_PERK_ID = "fireball_count_up";
-    const FIREBALL_COOLDOWN_PERK_ID = "fireball_cooldown_down";
-    const LIFE_LEECH_PERK_ID = "life_leech_up";
-    const FIREBALL_UNLOCK_LEVEL = 6;
-    const BLACK_HOLE_UNLOCK_PERK_ID = "black_hole_unlock";
-    const BLACK_HOLE_COUNT_PERK_ID = "black_hole_count_up";
-    const BLACK_HOLE_DAMAGE_PERK_ID = "black_hole_damage_up";
-    const BLACK_HOLE_COOLDOWN_PERK_ID = "black_hole_cooldown_down";
-    const BLACK_HOLE_UNLOCK_LEVEL = 5;
-    const SKILL_PERK_IDS = new Set([
-        AXE_PERK_ID,
-        CHAOS_AURA_UNLOCK_PERK_ID,
-        FIREBALL_UNLOCK_PERK_ID,
-        FIREBALL_COUNT_PERK_ID,
-        FIREBALL_COOLDOWN_PERK_ID,
-        BLACK_HOLE_UNLOCK_PERK_ID
-    ]);
 
     function isFireballUnlocked() {
         return (Number(attackStats.Fireball) || 0) > 0;

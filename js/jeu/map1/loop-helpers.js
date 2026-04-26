@@ -123,6 +123,8 @@ function handlePlayerDeath() {
 
     startDeathCinematic(() => {
         if (!isVilleMap && !isChangingMap) {
+            // Force map1 BGM to restart from 0 when the player comes back after death.
+            sessionStorage.setItem("gravesong.map1.bgm.restartOnNextLoad", "1");
             if (typeof playerController.clearPersistentProgress === "function") {
                 playerController.clearPersistentProgress();
             }
