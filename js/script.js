@@ -29,3 +29,17 @@ if (audio) {
 document.addEventListener('click', () => {
 	window.location.href = 'template/loading.html';
 });
+
+function pageSuivante() {
+    if (typeof saveAudioTime === 'function') {
+        saveAudioTime();
+    }
+    window.location.href = 'template/loading.html';
+}
+
+document.addEventListener('click', pageSuivante);
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'F11') return;
+    pageSuivante();
+});
