@@ -57,5 +57,4 @@ Si vous utilisez un serveur local, configurez simplement la racine du projet com
 - `js/` : code JavaScript du jeu
 - `assets/` : images, audio, sprites
 - `template/` : pages intermédiaires de chargement et lore
-
-Copyright © 2026 Gury Antoine, Gonzaga Clément, Beyney Thomas, Chochon Elsa
+© 2026 Gury Antoine, Gonzaga Clément, Beyney Thomas, Chochon Elsa
