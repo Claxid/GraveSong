@@ -17,8 +17,6 @@ GraveSong est un petit jeu web en 2D où le joueur explore des zones, affronte d
 
 ![sélection de perks](assets/screenshots/choix_perk.png)
 
-![Combat de boss](assets/screenshots/boss_map_1.png)
-
 ![map 2](assets/screenshots/map_2.png)
 
 ## Fonctionnalités
