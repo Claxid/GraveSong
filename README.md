@@ -28,7 +28,7 @@ GraveSong est un petit jeu web en 2D où le joueur explore des zones, affronte d
 - Système de niveaux et statistiques de dégâts
 - Écrans de lore, menu, et plein écran (F11)
 - Gestion des ennemis et combats avec boss
-- Jouable avec ZQSD et clikable (seulement pour les perks du perso)
+- Jouable avec ZQSD ou flèche directionelle et clikable (seulement pour les perks du perso)
 
 ## Installation et Prérequis
 1. Cloner ou télécharger le dépôt.
