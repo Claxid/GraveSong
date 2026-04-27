@@ -61,9 +61,3 @@ if (!isLoadingPage) {
     pageSuivante();
   });
 }
-
-
-
-
-
-  

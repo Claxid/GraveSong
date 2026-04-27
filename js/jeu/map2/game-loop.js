@@ -1,5 +1,8 @@
 function loop() {
     const now = performance.now();
+    const fireKnightBoss = window.fireKnightBoss;
+    const bossDefeated = window.bossDefeated;
+    
     updateDeathCinematic(now);
     updateTeleportCinematic(now);
 

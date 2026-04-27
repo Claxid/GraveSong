@@ -1,5 +1,6 @@
 window.Map2LoopRenderHud = {
     drawHudAndOverlays(now, clampFn) {
+        const fireKnightBoss = window.fireKnightBoss;
         const hudBottomY = canvas.height - uiStyles.expOffsetTop;
         const expBarHeight = uiStyles.expBarHeight;
         const barX = uiStyles.hpOffsetLeft;
@@ -53,9 +54,9 @@ window.Map2LoopRenderHud = {
         ctx.font = uiStyles.killFont;
         ctx.textAlign = "right";
         ctx.textBaseline = "top";
-        ctx.fillText(`Kills : ${killCount}`, canvas.width - uiStyles.killOffsetRight, uiStyles.killOffsetTop);
+        ctx.fillText(`Kills : ${window.killCount}`, canvas.width - uiStyles.killOffsetRight, uiStyles.killOffsetTop);
 
-        const elapsedTime = window.GameUiUtils.formatElapsedTime(performance.now() - gameStartAt);
+        const elapsedTime = window.GameUiUtils.formatElapsedTime(performance.now() - window.gameStartAt);
         ctx.fillStyle = uiStyles.timerTextColor;
         ctx.font = uiStyles.timerFont;
         ctx.textAlign = "right";

@@ -3,7 +3,7 @@
     const root = globalScope;
     root.PlayerSpells = root.PlayerSpells || {};
 
-    root.PlayerSpells.createBlackHoleSpell = function createBlackHoleSpell({ ctx, camera, player, worldBounds }) {
+    root.PlayerSpells.createBlackHoleSpell = function createBlackHoleSpell({ ctx, camera, player, worldBounds, applyEnemyDamage }) {
         const state = {
             active: false,
             count: 0,
@@ -310,7 +310,11 @@
                         const affectRadius = getPullRadiusForEnemy(enemy);
                         if ((dx * dx + dy * dy) > (affectRadius * affectRadius)) continue;
 
-                        enemy.hp = Math.max(0, enemy.hp - damagePerTick);
+                        if (typeof applyEnemyDamage === "function") {
+                            applyEnemyDamage(enemy, damagePerTick, "Trou noir");
+                        } else {
+                            enemy.hp = Math.max(0, enemy.hp - damagePerTick);
+                        }
                     }
                     blackHole.lastDamageAt = now;
                 }

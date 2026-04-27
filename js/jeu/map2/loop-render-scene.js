@@ -1,12 +1,13 @@
 window.Map2LoopRenderScene = {
     drawWorld(shouldDrawBoss, playerHitbox) {
+        const fireKnightBoss = window.fireKnightBoss;
         cameraController.centerOn(playerController.player.x, playerController.player.y);
 
         mapRenderer.draw(cameraController.camera);
         playerController.draw();
         playerController.drawAttacks();
 
-        if (shouldDrawBoss) {
+        if (shouldDrawBoss && fireKnightBoss) {
             fireKnightBoss.draw();
         }
 

@@ -104,8 +104,8 @@ const TELEPORT_GLOW_INTENSITY = 0.7;
 const BOSS_DEATH_TO_END_CINEMATIC_DELAY_MS = 3000;
 const GAME_FINISH_HOLD_MS = 1800;
 const SHOW_HITBOXES = false;
-const isMap1 = window.location.pathname.replace(/\\/g, "/").endsWith("/template/map2.html");
-const isVilleMap = window.location.pathname.replace(/\\/g, "/").endsWith("/template/ville.html");
+const isMap1 = window.location.pathname.replace(/\\/g, "/").toLowerCase().includes("/template/map2.html");
+const isVilleMap = window.location.pathname.replace(/\\/g, "/").toLowerCase().includes("/template/ville.html");
 const map2PortalZone = {
     x: 2270,
     y: 895,
@@ -114,6 +114,7 @@ const map2PortalZone = {
 };
 let isChangingMap = false;
 let lastContactDamageAt = 0;
+window.lastContactDamageAt = lastContactDamageAt;
 let lastProcessedLevel = playerController.player.level;
 let gameStartAt = performance.now();
 let lastSpawnAt = gameStartAt;
@@ -121,6 +122,17 @@ let killCount = 0;
 let fireKnightBoss = null;
 let bossSpawned = false;
 let bossDefeated = false;
+
+// Export globals for modular scripts
+window.fireKnightBoss = fireKnightBoss;
+window.bossSpawned = bossSpawned;
+window.bossDefeated = bossDefeated;
+window.spawnBossNearPlayer = spawnBossNearPlayer;
+window.spawnEnemyNearPlayer = spawnEnemyNearPlayer;
+window.getMap2WarmupEnemyCap = getMap2WarmupEnemyCap;
+window.killCount = killCount;
+window.gameStartAt = gameStartAt;
+window.lastSpawnAt = lastSpawnAt;
 let bossDefeatedAt = 0;
 let bossDeathAnimationCompletedAt = 0;
 let gameFinished = false;
@@ -178,6 +190,7 @@ for (let i = 0; i < INITIAL_ENEMY_COUNT; i++) {
 runtimeLogger.success("Spawn initial termine", { enemyCount: enemyControllers.length });
 
 function spawnBossNearPlayer() {
+    console.log("spawnBossNearPlayer called, Map2BossSystem:", !!window.Map2BossSystem);
     if (typeof window.Map2BossSystem === "undefined") return false;
 
     // Boss phase: remove regular mobs so the fight stays focused.
@@ -185,16 +198,22 @@ function spawnBossNearPlayer() {
 
     const spawn = getRandomSpawnAroundPlayer(playerController.player);
     fireKnightBoss = window.Map2BossSystem.createFireKnightBoss(spawn.x, spawn.y, ctx, cameraController.camera);
+    console.log("Boss created:", !!fireKnightBoss);
+    window.fireKnightBoss = fireKnightBoss;
     bossSpawned = true;
+    window.bossSpawned = true;
     bossDefeated = false;
+    window.bossDefeated = false;
     runtimeLogger.success("Fire Demon Boss spawn", { x: Math.round(spawn.x), y: Math.round(spawn.y) });
     return true;
 }
 
 function activateDevBossTestMode() {
+    console.log("Dev Mode triggered, isMap1:", isMap1);
     if (!isMap1) return;
 
     if (typeof playerController.applyDevTestLoadout === "function") {
+        console.log("Applying dev loadout");
         playerController.applyDevTestLoadout();
     }
     if (typeof playerController.setLifeLeechLevel === "function") {
@@ -202,12 +221,16 @@ function activateDevBossTestMode() {
     }
 
     if (!fireKnightBoss || !fireKnightBoss.boss || fireKnightBoss.boss.hp <= 0) {
+        console.log("Spawning boss via dev mode");
         spawnBossNearPlayer();
     }
 
     bossSpawned = true;
+    window.bossSpawned = true;
     bossDefeated = false;
+    window.bossDefeated = false;
     lastSpawnAt = performance.now();
+    window.lastSpawnAt = lastSpawnAt;
 }
 
 window.addEventListener("keydown", (e) => {
@@ -226,6 +249,7 @@ window.addEventListener("keydown", (e) => {
     const key = String(e.key || "").toLowerCase();
     if (!(e.ctrlKey && e.shiftKey && key === DEV_TEST_COMBO_KEY)) return;
 
+    console.log("Dev shortcut detected!");
     e.preventDefault();
     activateDevBossTestMode();
 });

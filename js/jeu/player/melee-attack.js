@@ -8,7 +8,8 @@
         camera,
         player,
         attackStats,
-        normalizeAngle
+        normalizeAngle,
+        applyEnemyDamage
     }) {
         const attacks = [];
         let lastAttackTime = 0;
@@ -65,7 +66,11 @@
                         const delta = Math.abs(normalizeAngle(enemyAngle - attack.angle));
                         if (delta > attackStats.halfAngle) continue;
 
-                        enemy.hp = Math.max(0, enemy.hp - attackStats.damage);
+                        if (typeof applyEnemyDamage === "function") {
+                            applyEnemyDamage(enemy, attackStats.damage, "Epee");
+                        } else {
+                            enemy.hp = Math.max(0, enemy.hp - attackStats.damage);
+                        }
                     }
                     attack.hitApplied = true;
                 }

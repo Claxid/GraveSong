@@ -3,7 +3,7 @@
     const root = globalScope;
     root.PlayerSpells = root.PlayerSpells || {};
 
-    root.PlayerSpells.createChaosAuraSpell = function createChaosAuraSpell({ ctx, camera, player }) {
+    root.PlayerSpells.createChaosAuraSpell = function createChaosAuraSpell({ ctx, camera, player, applyEnemyDamage }) {
         const state = {
             active: false,
             radius: 75,
@@ -95,7 +95,11 @@
                 const hitDistance = auraRadius + enemyRadius;
                 if ((dx * dx + dy * dy) > hitDistance * hitDistance) continue;
 
-                enemy.hp = Math.max(0, enemy.hp - auraDamage);
+                if (typeof applyEnemyDamage === "function") {
+                    applyEnemyDamage(enemy, auraDamage, "Aura du chaos");
+                } else {
+                    enemy.hp = Math.max(0, enemy.hp - auraDamage);
+                }
 
                 if (!state.knockbackAppliedEnemies.has(enemy)) {
                     const dist = Math.sqrt(dx * dx + dy * dy);

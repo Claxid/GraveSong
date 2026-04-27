@@ -1,5 +1,9 @@
 window.Map2LoopUpdate = {
     updateActorsAndEncounters(now, canUpdateWorld, bossDeathAnimRunning) {
+        const fireKnightBoss = window.fireKnightBoss;
+        const bossSpawned = window.bossSpawned;
+        const bossDefeated = window.bossDefeated;
+
         if (canUpdateWorld) {
             const enemies = isMap1 ? enemyControllers.map((controller) => controller.enemy) : [];
             if (fireKnightBoss && fireKnightBoss.boss && fireKnightBoss.boss.hp > 0) {
@@ -16,25 +20,25 @@ window.Map2LoopUpdate = {
             return;
         }
 
-        if (!bossSpawned && !bossDefeated && now - gameStartAt >= MAP2_BOSS_SPAWN_DELAY_MS) {
-            spawnBossNearPlayer();
+        if (!bossSpawned && !bossDefeated && now - window.gameStartAt >= MAP2_BOSS_SPAWN_DELAY_MS) {
+            window.spawnBossNearPlayer();
         }
 
         const isBossAlive = Boolean(fireKnightBoss && fireKnightBoss.boss && fireKnightBoss.boss.hp > 0);
         const nowTick = performance.now();
         const progressionCap = getMaxEnemyCount(nowTick);
-        const warmupCap = getMap2WarmupEnemyCap(nowTick);
+        const warmupCap = window.getMap2WarmupEnemyCap(nowTick);
         const maxEnemies = Math.min(progressionCap, warmupCap);
         const spawnInterval = getSpawnInterval(nowTick);
         const spawnBatchSize = getSpawnBatchSize(nowTick);
 
-        if (!isBossAlive && enemyControllers.length < maxEnemies && nowTick - lastSpawnAt >= spawnInterval) {
+        if (!isBossAlive && enemyControllers.length < maxEnemies && nowTick - window.lastSpawnAt >= spawnInterval) {
             const availableSlots = maxEnemies - enemyControllers.length;
             const spawnCount = Math.min(spawnBatchSize, availableSlots);
             for (let i = 0; i < spawnCount; i++) {
-                spawnEnemyNearPlayer();
+                window.spawnEnemyNearPlayer();
             }
-            lastSpawnAt = nowTick;
+            window.lastSpawnAt = nowTick;
         }
 
         for (const enemyController of enemyControllers) {
@@ -54,12 +58,12 @@ window.Map2LoopUpdate = {
             }
 
             enemyControllers.splice(i, 1);
-            killCount += 1;
+            window.killCount += 1;
             givePlayerExp(ENEMY_KILL_EXP);
         }
 
         if (fireKnightBoss && fireKnightBoss.boss.hp <= 0 && !bossDefeated) {
-            bossDefeated = true;
+            window.bossDefeated = true;
             bossDefeatedAt = performance.now();
             bossDeathAnimationCompletedAt = 0;
             enemyControllers.length = 0;

@@ -42,6 +42,7 @@ window.Map2LoopPlayerState = {
     applyContactDamage(canUpdateWorld) {
         if (!canUpdateWorld) return;
 
+        const fireKnightBoss = window.fireKnightBoss;
         let touchingEnemy = false;
         let contactDamage = CONTACT_DAMAGE;
         const playerRadius = Math.max(playerController.player.hitW || 24, playerController.player.hitH || 35) / 2;
@@ -75,9 +76,9 @@ window.Map2LoopPlayerState = {
 
         if (touchingEnemy) {
             const now = performance.now();
-            if (now - lastContactDamageAt >= DAMAGE_COOLDOWN_MS) {
+            if (now - window.lastContactDamageAt >= DAMAGE_COOLDOWN_MS) {
                 playerController.player.hp = Math.max(0, playerController.player.hp - contactDamage);
-                lastContactDamageAt = now;
+                window.lastContactDamageAt = now;
             }
         }
     },
@@ -106,7 +107,7 @@ window.Map2LoopPlayerState = {
             playerController.player.x = playerController.player.spawnX;
             playerController.player.y = playerController.player.spawnY;
             playerController.player.hp = playerController.player.maxHp;
-            lastContactDamageAt = performance.now();
+            window.lastContactDamageAt = performance.now();
         });
     }
 };

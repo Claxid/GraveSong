@@ -3,7 +3,7 @@
     const root = globalScope;
     root.PlayerSpells = root.PlayerSpells || {};
 
-    root.PlayerSpells.createFireballSpell = function createFireballSpell({ ctx, camera, player, attackStats }) {
+    root.PlayerSpells.createFireballSpell = function createFireballSpell({ ctx, camera, player, attackStats, applyEnemyDamage }) {
         const fireballSprite = new Image();
         fireballSprite.src = "../assets/sprites/Fireball/fireball_0.png";
 
@@ -238,8 +238,12 @@
 
                     if ((dx * dx + dy * dy) > hitDistance * hitDistance) continue;
 
-                    const appliedFireballDamage = enemy.type === "orc" ? enemy.hp : fireballDamage;
-                    enemy.hp = Math.max(0, enemy.hp - appliedFireballDamage);
+                    const appliedFireballDamage = enemy.type === "gobelin" ? enemy.hp : fireballDamage;
+                    if (typeof applyEnemyDamage === "function") {
+                        applyEnemyDamage(enemy, appliedFireballDamage, "Boule de feu");
+                    } else {
+                        enemy.hp = Math.max(0, enemy.hp - appliedFireballDamage);
+                    }
                     spawnExplosion(fireball.x, fireball.y);
                     hit = true;
                     break;

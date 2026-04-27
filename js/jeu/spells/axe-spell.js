@@ -3,7 +3,7 @@
     const root = globalScope;
     root.PlayerSpells = root.PlayerSpells || {};
 
-    root.PlayerSpells.createAxeSpell = function createAxeSpell({ ctx, camera, player, attackStats, normalizeAngle }) {
+    root.PlayerSpells.createAxeSpell = function createAxeSpell({ ctx, camera, player, attackStats, normalizeAngle, applyEnemyDamage }) {
         const axeSprite = new Image();
         axeSprite.src = "../assets/sprites/axe.png";
         const infernalAxeSprite = new Image();
@@ -149,8 +149,13 @@
                     const lastHitTime = state.lastHitByEnemy.get(cooldownKey) ?? 0;
                     if (now - lastHitTime < state.hitCooldown) continue;
 
-                    const appliedAxeDamage = enemy.type === "orc" ? enemy.hp : axeDamage;
-                    enemy.hp = Math.max(0, enemy.hp - appliedAxeDamage);
+                    const appliedAxeDamage = enemy.type === "gobelin" ? enemy.hp : axeDamage;
+                    if (typeof applyEnemyDamage === "function") {
+                        const source = useInfernalAxe ? "Hache infernale" : "Hache tournoyante";
+                        applyEnemyDamage(enemy, appliedAxeDamage, source);
+                    } else {
+                        enemy.hp = Math.max(0, enemy.hp - appliedAxeDamage);
+                    }
                     state.lastHitByEnemy.set(cooldownKey, now);
                 }
             }
