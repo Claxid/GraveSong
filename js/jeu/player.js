@@ -1,4 +1,4 @@
-// Player compatibility facade.
+
 
 function createPlayerController(canvas, ctx, camera, worldBounds = null) {
     if (!window.GamePlayerController || typeof window.GamePlayerController.createPlayerController !== "function") {
