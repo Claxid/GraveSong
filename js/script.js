@@ -26,6 +26,16 @@ if (audio) {
 	window.addEventListener('pagehide', saveAudioTime);
 }
 
-document.addEventListener('click', () => {
+function pageSuivante() {
+	if (typeof saveAudioTime === 'function') {
+		saveAudioTime();
+	}
 	window.location.href = 'template/loading.html';
+}
+
+document.addEventListener('click', pageSuivante);
+
+document.addEventListener('keydown', (e) => {
+	if (e.key === 'F11') return;
+	pageSuivante();
 });
