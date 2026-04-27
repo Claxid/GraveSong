@@ -12,20 +12,8 @@ const bossHpOverSprite = new Image();
 window.GameRuntimeLogger?.trackImage(bossHpOverSprite, "Boss HP Over", "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_over.png");
 bossHpOverSprite.src = "../assets/sprites/mino_v1.1_free/bonus_mino_healthbar_UI/mino_health_over.png";
 
-function getCssVar(name, fallback) {
-    return window.GameUiUtils.getCssVar(canvas, name, fallback);
-}
-
-function getCssNumber(name, fallback) {
-    return window.GameUiUtils.getCssNumber(canvas, name, fallback);
-}
-
 function readUiStyles() {
     return window.GameUiUtils.readUiStyles(canvas);
-}
-
-function clamp(value, min, max) {
-    return window.GameUiUtils.clamp(value, min, max);
 }
 
 function startDeathCinematic(onComplete) {
@@ -112,12 +100,4 @@ function getSpawnBatchSize(now) {
 
 function givePlayerExp(amount) {
     window.GameProgressionUtils.givePlayerExp(playerController.player, amount);
-}
-
-function drawBossHealthBar(bossEnemy) {
-    window.Map2BossSystem.drawBossHealthBar(ctx, canvas, clamp, bossEnemy, {
-        under: bossHpUnderSprite,
-        progress: bossHpProgressSprite,
-        over: bossHpOverSprite
-    });
 }

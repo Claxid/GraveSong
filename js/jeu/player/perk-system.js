@@ -62,24 +62,16 @@ window.GamePlayerPerkSystem = (() => {
 
             const eligiblePerks = forLevel === levels.axeUnlock ? regularPerks.filter((perk) => ids.skillPerks.has(perk.id)) : regularPerks;
             const selected = shuffle(eligiblePerks.slice()).slice(0, Math.min(count, eligiblePerks.length));
-
             return selected.map((perk) => perk.id === ids.axe ? getAxePerkCard() : ({ id: perk.id, name: perk.name, description: perk.description }));
         }
 
         function queuePerkChoices(levelsGained = 1) {
             const firstGainedLevel = Math.max(1, player.level - levelsGained + 1);
-            for (let i = 0; i < levelsGained; i++) {
-                pendingPerkChoices.push(pickRandomPerks(3, firstGainedLevel + i));
-            }
+            for (let i = 0; i < levelsGained; i++) pendingPerkChoices.push(pickRandomPerks(3, firstGainedLevel + i));
         }
 
-        function getCurrentPerkChoices() {
-            return pendingPerkChoices.length === 0 ? null : pendingPerkChoices[0];
-        }
-
-        function hasPendingPerks() {
-            return pendingPerkChoices.length > 0;
-        }
+        function getCurrentPerkChoices() { return pendingPerkChoices.length === 0 ? null : pendingPerkChoices[0]; }
+        function hasPendingPerks() { return pendingPerkChoices.length !== 0; }
 
         function applyPerkByIndex(idx) {
             if (!hasPendingPerks()) return null;
@@ -102,7 +94,6 @@ window.GamePlayerPerkSystem = (() => {
             syncDerivedAttackVisualStats();
             return choice.id;
         }
-
         return {
             pendingPerkChoices,
             perkPool,
@@ -112,8 +103,5 @@ window.GamePlayerPerkSystem = (() => {
             applyPerkByIndex
         };
     }
-
-    return {
-        createPlayerPerkSystem
-    };
+    return { createPlayerPerkSystem };
 })();
